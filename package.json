@@ -1,6 +1,6 @@
 {
   "name": "logviewerpro",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "跨平台日志可视化工具",
   "type": "module",
   "main": "dist/main/index.js",
@@ -24,8 +24,8 @@
     "url": "git+https://github.com/figozhu/LogViewerPro.git"
   },
   "keywords": [],
-  "author": "",
-  "license": "MIT",
+  "author": "FigoZhu",
+  "license": "Apache 2.0",
   "bugs": {
     "url": "https://github.com/figozhu/LogViewerPro/issues"
   },
