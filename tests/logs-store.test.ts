@@ -5,9 +5,9 @@ import type { SchemaInfo } from '../src/shared/models/query';
 
 const schema: SchemaInfo = {
   columns: [
-    { name: 'timestamp', type: 'INTEGER', notnull: 0 },
-    { name: 'level', type: 'TEXT', notnull: 0 },
-    { name: 'message', type: 'TEXT', notnull: 0 }
+    { name: 'timestamp', type: 'INTEGER', notnull: false },
+    { name: 'level', type: 'TEXT', notnull: false },
+    { name: 'message', type: 'TEXT', notnull: false }
   ],
   meta: {
     template_name: 'API Log',

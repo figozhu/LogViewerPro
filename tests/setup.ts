@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { beforeEach, vi } from 'vitest';
 
 beforeEach(() => {
   vi.restoreAllMocks();

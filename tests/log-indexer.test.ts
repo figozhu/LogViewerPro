@@ -75,7 +75,11 @@ describe.skip('LogIndexer', () => {
     expect(result.unmatchedSamples).toHaveLength(1);
 
     const db = new Database(dbPath, { readonly: true });
-    const rows = db.prepare('SELECT * FROM logs ORDER BY timestamp').all();
+    const rows = db.prepare('SELECT * FROM logs ORDER BY timestamp').all() as Array<{
+      timestamp: number;
+      level: string;
+      message: string;
+    }>;
     db.close();
 
     expect(rows).toHaveLength(2);

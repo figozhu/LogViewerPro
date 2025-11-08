@@ -9,14 +9,18 @@ const mockTemplates: LogTemplate[] = [
     name: 'API Log',
     regex: '\\[(?<timestamp>.*?)\\] (?<level>INFO|ERROR) (?<message>.*)',
     timestampField: 'timestamp',
-    ftsField: 'message'
+    ftsField: 'message',
+    createdAt: Date.now(),
+    updatedAt: Date.now()
   },
   {
     id: '2',
     name: 'Worker Log',
     regex: '(?<level>WARN): (?<message>.*)',
     timestampField: 'timestamp',
-    ftsField: 'message'
+    ftsField: 'message',
+    createdAt: Date.now(),
+    updatedAt: Date.now()
   }
 ];
 

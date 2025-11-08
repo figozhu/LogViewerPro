@@ -6,7 +6,7 @@ const baseOptions = {
   allowedColumns: ['id', 'timestamp', 'level', 'message'],
   defaultOrderBy: 'timestamp',
   ftsField: 'message'
-} as const;
+};
 
 describe('QueryBuilder', () => {
   it('builds SQL with search and filters using parameter binding', () => {
