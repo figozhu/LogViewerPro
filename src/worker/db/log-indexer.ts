@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import { createReadStream, type ReadStream } from 'node:fs';
 import * as readline from 'node:readline';
-import type { IndexWorkerCacheInfo, IndexWorkerTemplate } from '@shared/models/indexing';
+import type { IndexWorkerCacheInfo, IndexWorkerTemplate } from '../../shared/models/indexing.js';
 
 export interface IndexResult {
   inserted: number;

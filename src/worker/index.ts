@@ -1,13 +1,13 @@
 import { parentPort, type MessagePort } from 'node:worker_threads';
-import type { MainToWorkerMessage } from '@shared/ipc-worker';
-import { IPC_CHANNELS } from '@shared/ipc-channels';
+import type { MainToWorkerMessage } from '../shared/ipc-worker.js';
+import { IPC_CHANNELS } from '../shared/ipc-channels.js';
 import type {
   IndexCompleteEvent,
   IndexProgressEvent,
   IndexWorkerPayload
-} from '@shared/models/indexing';
-import { SchemaBuilder } from './db/schema-builder';
-import { LogIndexer } from './db/log-indexer';
+} from '../shared/models/indexing.js';
+import { SchemaBuilder } from './db/schema-builder.js';
+import { LogIndexer } from './db/log-indexer.js';
 
 const activeJobs = new Map<string, LogIndexer>();
 
@@ -69,7 +69,7 @@ const handleIndexStart = async (port: MessagePort, payload: IndexWorkerPayload) 
         progress: 5
       } satisfies IndexProgressEvent
     });
-    const result = await indexer.run((progress) => {
+    const result = await indexer.run((progress: number) => {
       port.postMessage({
         type: IPC_CHANNELS.INDEX_PROGRESS,
         payload: { jobId: payload.jobId, phase: 'parsing', progress } satisfies IndexProgressEvent

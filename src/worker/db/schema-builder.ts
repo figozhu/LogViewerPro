@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import { dirname } from 'node:path';
 import { mkdirSync } from 'node:fs';
-import type { IndexWorkerCacheInfo, IndexWorkerTemplate } from '@shared/models/indexing';
+import type { IndexWorkerCacheInfo, IndexWorkerTemplate } from '../../shared/models/indexing.js';
 
 const NAMED_GROUP_REGEX = /\(\?<([A-Za-z0-9_]+)>/g;
 

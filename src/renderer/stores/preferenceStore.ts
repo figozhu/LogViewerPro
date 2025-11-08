@@ -12,6 +12,11 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'dark',
   defaultQueryLimit: 100,
   rememberWindowState: true,
+  windowState: {
+    width: 1280,
+    height: 800,
+    maximized: false
+  },
   lastUpdatedAt: Date.now()
 };
 

@@ -1,16 +1,12 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "module": "CommonJS",
+    "outDir": "dist/worker",
+    "module": "NodeNext",
     "target": "ES2022",
-    "moduleResolution": "Node",
-    "lib": [
-      "ES2023"
-    ],
-    "types": [
-      "node"
-    ]
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023"],
+    "types": ["node"]
   },
   "include": [
     "src/worker/**/*.ts",

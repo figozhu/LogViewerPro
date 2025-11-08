@@ -1,5 +1,6 @@
 import { Worker } from 'node:worker_threads';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { IPC_CHANNELS } from '@shared/ipc-channels';
 import type { MainToWorkerMessage, WorkerToMainMessage } from '@shared/ipc-worker';
 import { logger } from './logger';
@@ -26,8 +27,8 @@ export class WorkerManager {
       return this.worker;
     }
 
-    const workerEntry = join(__dirname, '../worker/index.js');
-    const worker = new Worker(workerEntry);
+    const workerEntry = join(__dirname, '../worker/worker/index.js');
+    const worker = new Worker(pathToFileURL(workerEntry));
     logger.info('Worker thread created', { workerEntry });
     this.worker = worker;
     this.bindWorker(worker);

@@ -1,5 +1,9 @@
-import { IPC_CHANNELS } from './ipc-channels';
-import type { IndexCompleteEvent, IndexProgressEvent, IndexWorkerPayload } from './models/indexing';
+import { IPC_CHANNELS } from './ipc-channels.js';
+import type {
+  IndexCompleteEvent,
+  IndexProgressEvent,
+  IndexWorkerPayload
+} from './models/indexing.js';
 
 export type MainToWorkerMessage =
   | {
