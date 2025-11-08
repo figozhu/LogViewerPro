@@ -14,9 +14,11 @@ export interface BuildOptions {
 /**
  * 负责在 Main 进程内构建查询 SQL，统一做列名白名单校验与参数规�? */
 export class QueryBuilder {
-  private readonly columnSet = new Set(this.options.allowedColumns ?? []);
+  private readonly columnSet: Set<string>;
 
-  constructor(private readonly options: BuildOptions) {}
+  constructor(private readonly options: BuildOptions) {
+    this.columnSet = new Set(options.allowedColumns ?? []);
+  }
 
   /**
    * 构建查询 SQL，返回 SQL 文本与参数列表，确保 limit/offset/列名全部被消毒�? */

@@ -15,7 +15,8 @@
     "lint": "eslint . --ext .ts,.vue",
     "format": "prettier --write \"src/**/*.{ts,vue,css}\"",
     "prepare": "husky install",
-    "dist": "npm run build && electron-builder -c electron-builder.config.cjs"
+    "dist": "npm run build && electron-builder -c electron-builder.config.cjs",
+    "test": "vitest run"
   },
   "repository": {
     "type": "git",
@@ -42,6 +43,7 @@
     "@typescript-eslint/eslint-plugin": "^8.46.3",
     "@typescript-eslint/parser": "^8.46.3",
     "@vitejs/plugin-vue": "^6.0.1",
+    "@vitest/coverage-v8": "^4.0.8",
     "electron": "^39.1.1",
     "electron-builder": "^26.0.12",
     "electron-vite": "^4.0.1",
@@ -56,6 +58,7 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.3",
     "vite": "^7.2.2",
+    "vitest": "^4.0.8",
     "vue-eslint-parser": "^10.2.0",
     "vue-tsc": "^3.1.3"
   },
