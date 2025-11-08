@@ -56,6 +56,9 @@ module.exports = {
     artifactName: '${productName}-${version}-win-${arch}.${ext}',
     signAndEditExecutable: false
   },
+  portable: {
+    artifactName: '${productName}-${version}-win-${arch}-portable.${ext}'
+  },
   nsis: {
     oneClick: false,
     allowToChangeInstallationDirectory: true,
