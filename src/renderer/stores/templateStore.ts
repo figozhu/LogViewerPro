@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import type { LogTemplate, SaveTemplatePayload } from '@shared/models/log-template';
+import i18n from '../i18n';
 
 interface RegexTestResult {
   line: string;
@@ -149,7 +150,7 @@ export const useTemplateStore = defineStore('templateStore', {
       this.errorMessage = '';
       try {
         if (!this.currentForm.regex.trim()) {
-          this.errorMessage = '请先输入正则表达式';
+          this.errorMessage = translate('templateStore.errors.regexRequired');
           this.testResults = [];
           return;
         }
@@ -174,11 +175,17 @@ export const useTemplateStore = defineStore('templateStore', {
 
         this.testResults = results;
       } catch (error) {
-        this.errorMessage = `正则测试失败：${formatError(error)}`;
+        this.errorMessage = translate('templateStore.errors.regexTestFailed', {
+          message: formatError(error)
+        });
       }
     }
   }
 });
+
+const translate = (key: string, values?: Record<string, unknown>): string => {
+  return i18n.global.t(key as never, values as never);
+};
 
 function createEmptyForm(): TemplateFormState {
   return {

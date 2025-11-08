@@ -37,13 +37,17 @@ export class SchemaBuilder {
       matches.add(match[1]);
     }
     if (!matches.size) {
-      throw new Error('模板正则必须包含至少一个命名捕获组');
+      throw new Error('Template regex must contain at least one named capture group.');
     }
     if (!matches.has(this.template.timestampField)) {
-      throw new Error(`时间字段 "${this.template.timestampField}" 未在命名捕获组中声明`);
+      throw new Error(
+        `Timestamp field "${this.template.timestampField}" is not defined in the named capture groups.`
+      );
     }
     if (!matches.has(this.template.ftsField)) {
-      throw new Error(`全文字段 "${this.template.ftsField}" 未在命名捕获组中声明`);
+      throw new Error(
+        `Full-text field "${this.template.ftsField}" is not defined in the named capture groups.`
+      );
     }
     return Array.from(matches);
   }

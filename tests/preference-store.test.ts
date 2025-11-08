@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { usePreferenceStore } from '../src/renderer/stores/preferenceStore';
 import type { UserPreferences } from '../src/shared/models/preferences';
@@ -6,6 +6,7 @@ import type { UserPreferences } from '../src/shared/models/preferences';
 const samplePreferences: UserPreferences = {
   theme: 'dark',
   defaultQueryLimit: 1000,
+  language: 'auto',
   rememberWindowState: true,
   windowState: {
     width: 1280,

@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import TemplateManager from './components/templates/TemplateManager.vue';
 import LogViewer from './components/logs/LogViewer.vue';
 import HelpCenter from './components/help/HelpCenter.vue';
 import SystemLogPanel from './components/system/SystemLogPanel.vue';
 import UserPreferencesPanel from './components/system/UserPreferencesPanel.vue';
+import i18n from './i18n';
 import type { IndexCompleteEvent, IndexProgressEvent } from '@shared/models/indexing';
 import { useTemplateStore } from './stores/templateStore';
 import { useLogsStore } from './stores/logsStore';
@@ -13,14 +15,31 @@ import { promptTemplateSelection, type TemplateSelectionResult } from './modules
 import type { CacheSummary } from '@shared/models/cache';
 import { usePreferenceStore } from './stores/preferenceStore';
 
-const handshakeTime = ref('尚未连接');
+const { t } = useI18n();
+
+const bridge = window.logViewerApi;
+if (!bridge) {
+  console.error('[Renderer] bridge is unavailable');
+  throw new Error('IPC bridge missing');
+}
+
+type ProgressPhase = 'idle' | 'preparing' | 'parsing' | 'cache' | 'completed' | 'cancelled';
+type IndexStatusMessage =
+  | { key: 'waiting' }
+  | { key: 'jobStarted'; id: string }
+  | { key: 'cacheHit' }
+  | { key: 'cacheReload' }
+  | { key: 'completed' }
+  | { key: 'cancelled' };
+
+const handshakeTime = ref<string | null>(null);
 const menuInvokeCount = ref(0);
-const lastOpenedFile = ref('尚未选择');
-const indexingMessage = ref('等待任务');
-const progressPhase = ref('无');
+const lastOpenedFile = ref<string | null>(null);
+const indexingStatus = ref<IndexStatusMessage>({ key: 'waiting' });
+const progressPhase = ref<ProgressPhase>('idle');
 const progressValue = ref(0);
 const currentJobId = ref<string | null>(null);
-const latestAppError = ref('暂无错误');
+const latestAppError = ref<string | null>(null);
 const errorHistory = ref<Array<{ title: string; message: string; timestamp: string }>>([]);
 const isDragOver = ref(false);
 const dragError = ref('');
@@ -31,19 +50,98 @@ const isCancelling = ref(false);
 const isIndexing = computed(() => currentJobId.value !== null);
 const lastIndexStats = ref<{ inserted?: number; skipped?: number; unmatched?: string[] }>({});
 
+const phaseLabelMap: Record<ProgressPhase, () => string> = {
+  idle: () => t('app.index.phase.idle'),
+  preparing: () => t('app.index.phase.preparing'),
+  parsing: () => t('app.index.phase.parsing'),
+  cache: () => t('app.index.phase.cacheHit'),
+  completed: () => t('app.index.phase.completed'),
+  cancelled: () => t('app.index.phase.cancelled')
+};
+
+const progressPhaseLabel = computed(() => phaseLabelMap[progressPhase.value]());
+const indexingMessageText = computed(() => {
+  const status = indexingStatus.value;
+  switch (status.key) {
+    case 'jobStarted':
+      return t('app.index.status.jobStarted', { id: status.id });
+    case 'cacheHit':
+      return t('app.index.status.cacheHit');
+    case 'cacheReload':
+      return t('app.index.status.cacheReload');
+    case 'completed':
+      return t('app.index.status.completed');
+    case 'cancelled':
+      return t('app.index.status.cancelled');
+    case 'waiting':
+    default:
+      return t('app.index.status.waiting');
+  }
+});
+
+const handshakeDisplay = computed(
+  () => handshakeTime.value ?? t('app.header.handshakePending')
+);
+const currentFileDisplay = computed(
+  () => lastOpenedFile.value ?? t('app.state.noFile')
+);
+const logsStatusText = computed(() =>
+  t('app.logsPanel.statusLine', {
+    status: indexingMessageText.value,
+    phase: progressPhaseLabel.value,
+    progress: progressValue.value
+  })
+);
+const statusOverviewText = computed(() =>
+  t('app.status.statusLine', {
+    status: indexingMessageText.value,
+    phase: progressPhaseLabel.value,
+    progress: progressValue.value
+  })
+);
+const cacheProgressText = computed(() =>
+  t('app.cache.progress', { phase: progressPhaseLabel.value, progress: progressValue.value })
+);
+
 type AppTab = 'logs' | 'templates' | 'status' | 'preferences' | 'systemLog' | 'help';
 
 /**
  * 顶部标签集合，便于后续迭代时统一配置元数据
  */
-const tabs: Array<{ id: AppTab; label: string; description: string }> = [
-  { id: 'logs', label: '日志解析', description: '打开、解析与浏览日志文件' },
-  { id: 'templates', label: '模板管理', description: '维护解析模板与快速测试正则' },
-  { id: 'status', label: '运行状态', description: '查看缓存、任务与错误看板' },
-  { id: 'systemLog', label: '系统日志', description: '查看主进程与服务日志' },
-  { id: 'preferences', label: '个性化设置', description: '切换主题、调节默认参数' },
-  { id: 'help', label: '使用帮助', description: '快速了解操作方式与支持渠道' }
-];
+const tabs = computed(
+  (): Array<{ id: AppTab; label: string; description: string }> => [
+    {
+      id: 'logs',
+      label: t('app.tabs.logs.label'),
+      description: t('app.tabs.logs.description')
+    },
+    {
+      id: 'templates',
+      label: t('app.tabs.templates.label'),
+      description: t('app.tabs.templates.description')
+    },
+    {
+      id: 'status',
+      label: t('app.tabs.status.label'),
+      description: t('app.tabs.status.description')
+    },
+    {
+      id: 'systemLog',
+      label: t('app.tabs.systemLog.label'),
+      description: t('app.tabs.systemLog.description')
+    },
+    {
+      id: 'preferences',
+      label: t('app.tabs.preferences.label'),
+      description: t('app.tabs.preferences.description')
+    },
+    {
+      id: 'help',
+      label: t('app.tabs.help.label'),
+      description: t('app.tabs.help.description')
+    }
+  ]
+);
 const activeTab = ref<AppTab>('logs');
 
 let disposeMenuListener: (() => void) | null = null;
@@ -59,6 +157,12 @@ const preferenceStore = usePreferenceStore();
 const { templates, recentItems } = storeToRefs(templateStore);
 const templateCount = computed(() => templates.value.length);
 const resolvedPreferences = computed(() => preferenceStore.resolved);
+const languageOptions = computed(() => [
+  { value: 'auto', label: t('app.header.language.auto') },
+  { value: 'zh-CN', label: t('app.header.language.zhCN') },
+  { value: 'en-US', label: t('app.header.language.enUS') }
+]);
+const currentLanguage = computed(() => resolvedPreferences.value.language ?? 'auto');
 
 const syncQueryLimitFromPreference = () => {
   void logsStore.setDefaultLimit(resolvedPreferences.value.defaultQueryLimit);
@@ -76,6 +180,26 @@ const handleSystemThemeChange = () => {
   if (resolvedPreferences.value.theme === 'system') {
     applyThemePreference();
   }
+};
+
+const determineLocale = () => {
+  const preference = resolvedPreferences.value.language;
+  if (preference === 'auto') {
+    const browserLang = navigator.language?.toLowerCase() ?? '';
+    return browserLang.startsWith('zh') ? 'zh-CN' : 'en-US';
+  }
+  return preference;
+};
+
+const applyLanguagePreference = () => {
+  const locale = determineLocale();
+  i18n.global.locale.value = locale;
+  document.documentElement.lang = locale;
+};
+
+const handleLanguageChange = (event: Event) => {
+  const value = (event.target as HTMLSelectElement).value as 'auto' | 'zh-CN' | 'en-US';
+  void preferenceStore.updatePreferences({ language: value });
 };
 
 watch(
@@ -96,6 +220,15 @@ watch(
   }
 );
 
+watch(
+  () => resolvedPreferences.value.language,
+  (newLang, oldLang) => {
+    if (newLang !== oldLang) {
+      applyLanguagePreference();
+    }
+  }
+);
+
 /**
  * 以更新时间倒序展示缓存条目列表，供 UI 快速浏览最近的索引产物。
  */
@@ -112,7 +245,7 @@ const cacheEntriesView = computed(() => {
     }));
 });
 
-const cacheDirPath = computed(() => cacheSummary.value?.cacheDir ?? '缓存目录尚未生成');
+const cacheDirPath = computed(() => cacheSummary.value?.cacheDir ?? t('app.cache.noDir'));
 
 /**
  * 最近打开列表的展示模型，附带时间描述与模板可用性标记。
@@ -121,12 +254,13 @@ const recentItemsView = computed(() => {
   const templateMap = new Map(templates.value.map((tpl) => [tpl.id, tpl]));
   return recentItems.value.map((item) => {
     const template = templateMap.get(item.templateId);
-    const displayName = template?.name ?? item.templateName ?? '未命名模板';
+    const displayName =
+      template?.name ?? item.templateName ?? t('app.recent.unnamedTemplate');
     return {
       ...item,
       displayName,
-      openedAtAbsolute: item.openedAt ? formatDateTime(item.openedAt) : '时间未知',
-      openedAtRelative: item.openedAt ? formatRelativeTime(item.openedAt) : '时间未知',
+      openedAtAbsolute: item.openedAt ? formatDateTime(item.openedAt) : t('app.time.unknown'),
+      openedAtRelative: item.openedAt ? formatRelativeTime(item.openedAt) : t('app.time.unknown'),
       missingTemplate: !template
     };
   });
@@ -157,10 +291,10 @@ const reportError = (title: string, error: unknown) => {
 
 const pingMainProcess = async () => {
   try {
-    const response = await window.logViewerApi.notifyReady();
+    const response = await bridge.notifyReady();
     handshakeTime.value = new Date(response.timestamp).toLocaleString();
   } catch (error) {
-    reportError('IPC 握手失败', error);
+    reportError(t('app.errors.ipcHandshakeFailed'), error);
   }
 };
 
@@ -179,33 +313,33 @@ const selectTemplate = async (
 const handleExternalFileOpen = async (filePath: string, preferredTemplateId?: string) => {
   try {
     dragError.value = '';
-    await window.logViewerApi.validateFile(filePath);
+    await bridge.validateFile(filePath);
     const selection = await selectTemplate(preferredTemplateId);
     if (!selection) return;
 
     lastOpenedFile.value = filePath;
     await templateStore.saveRecent(filePath, selection.templateId, selection.templateName);
-    progressPhase.value = '准备中';
+    progressPhase.value = 'preparing';
     progressValue.value = 0;
     lastIndexStats.value = {};
-    const { jobId, cacheUsed } = await window.logViewerApi.startIndexing({
+    const { jobId, cacheUsed } = await bridge.startIndexing({
       filePath,
       templateId: selection.templateId
     });
     if (cacheUsed) {
       currentJobId.value = null;
-      progressPhase.value = '命中缓存';
+      progressPhase.value = 'cache';
       progressValue.value = 100;
-      indexingMessage.value = '命中缓存，已完成加载';
+      indexingStatus.value = { key: 'cacheHit' };
       void logsStore.setActiveFile(filePath);
       void refreshCacheSummary();
     } else {
       currentJobId.value = jobId;
-      indexingMessage.value = `索引任务 ${jobId} 已启动`;
+      indexingStatus.value = { key: 'jobStarted', id: jobId };
     }
   } catch (error) {
     dragError.value = formatError(error);
-    reportError('文件打开失败', error);
+    reportError(t('app.errors.fileOpenFailed'), error);
   }
 };
 
@@ -213,7 +347,7 @@ const handleExternalFileOpen = async (filePath: string, preferredTemplateId?: st
  * 统一的文件对话框打开流程，供菜单与快捷按钮复用
  */
 const openFileDialogAndHandle = async (): Promise<boolean> => {
-  const result = await window.logViewerApi.openLogFileDialog();
+  const result = await bridge.openLogFileDialog();
   if (result.canceled || result.filePaths.length === 0) {
     return false;
   }
@@ -247,23 +381,23 @@ const handleIndexComplete = (payload: IndexCompleteEvent) => {
     unmatched: payload.unmatched
   };
   if (payload.cancelled) {
-    indexingMessage.value = '索引任务已取消';
+    indexingStatus.value = { key: 'cancelled' };
   } else if (payload.cacheUsed) {
-    indexingMessage.value = '命中缓存，已瞬时加载';
+    indexingStatus.value = { key: 'cacheReload' };
   } else {
-    indexingMessage.value = '索引完成';
+    indexingStatus.value = { key: 'completed' };
   }
-  progressPhase.value = payload.cancelled ? '已取消' : '完成';
+  progressPhase.value = payload.cancelled ? 'cancelled' : 'completed';
   progressValue.value = payload.cancelled ? progressValue.value : 100;
   currentJobId.value = null;
-  if (!payload.cancelled && lastOpenedFile.value && lastOpenedFile.value !== '尚未选择') {
+  if (!payload.cancelled && lastOpenedFile.value) {
     void logsStore.setActiveFile(lastOpenedFile.value);
   }
   void refreshCacheSummary();
 };
 
 const handleAppError = (payload: { title: string; message: string }) => {
-  latestAppError.value = `${payload.title}：${payload.message}`;
+  latestAppError.value = `${payload.title} - ${payload.message}`;
   appendErrorHistory(payload.title, payload.message);
 };
 
@@ -277,7 +411,7 @@ const reopenRecent = async (item: { filePath: string; templateId: string }) => {
 const refreshCacheSummary = async () => {
   cacheInfoLoading.value = true;
   try {
-    cacheSummary.value = await window.logViewerApi.getCacheSummary();
+    cacheSummary.value = await bridge.getCacheSummary();
   } finally {
     cacheInfoLoading.value = false;
   }
@@ -286,7 +420,7 @@ const refreshCacheSummary = async () => {
 const clearCache = async () => {
   clearingCache.value = true;
   try {
-    cacheSummary.value = await window.logViewerApi.clearCache();
+    cacheSummary.value = await bridge.clearCache();
   } finally {
     clearingCache.value = false;
   }
@@ -294,9 +428,9 @@ const clearCache = async () => {
 
 const openCacheDir = async () => {
   try {
-    await window.logViewerApi.openCacheDir();
+    await bridge.openCacheDir();
   } catch (error) {
-    reportError('打开缓存目录失败', error);
+    reportError(t('app.errors.openCacheDirFailed'), error);
   }
 };
 
@@ -317,13 +451,13 @@ const onDrop = (event: DragEvent) => {
   isDragOver.value = false;
   const files = event.dataTransfer?.files;
   if (!files || files.length === 0) {
-    dragError.value = '未检测到拖拽的文件';
+    dragError.value = t('app.drag.noFile');
     return;
   }
   const file = files[0] as File & { path?: string };
   const filePath = file.path;
   if (!filePath) {
-    dragError.value = '无法读取文件路径';
+    dragError.value = t('app.drag.noPath');
     return;
   }
   void handleExternalFileOpen(filePath);
@@ -333,9 +467,9 @@ const onDrop = (event: DragEvent) => {
  * 根据缓存统计生成可读文本，方便在列表中展示写入/跳过数量。
  */
 const formatCacheStats = (inserted?: number, skipped?: number): string => {
-  const insertedText = inserted !== undefined ? inserted : '—';
-  const skippedText = skipped !== undefined ? skipped : '—';
-  return `写入 ${insertedText} · 跳过 ${skippedText}`;
+  const insertedText = inserted ?? '—';
+  const skippedText = skipped ?? '—';
+  return t('app.cache.stats', { inserted: insertedText, skipped: skippedText });
 };
 
 /**
@@ -357,24 +491,25 @@ const formatBytes = (size: number): string => {
  * 将时间戳格式化为本地时间字符串，统一 UI 展示格式。
  */
 const formatDateTime = (timestamp: number): string => {
-  if (!timestamp) return '时间未知';
+  if (!timestamp) return t('app.time.unknown');
   return new Date(timestamp).toLocaleString();
 };
 
 /**
  * 计算相对时间（几分钟前/几小时前），用于最近列表提示。
  */
-const formatRelativeTime = (timestamp: number): string => {
-  if (!timestamp) return '时间未知';
+const formatRelativeTime = (timestamp?: number): string => {
+  if (!timestamp) return t('app.time.unknown');
   const diff = Date.now() - timestamp;
   const minute = 60 * 1000;
   const hour = 60 * minute;
   const day = 24 * hour;
-  if (diff < minute) return '刚刚';
-  if (diff < hour) return `${Math.floor(diff / minute)} 分钟前`;
-  if (diff < day) return `${Math.floor(diff / hour)} 小时前`;
-  if (diff < day * 7) return `${Math.floor(diff / day)} 天前`;
-  return formatDateTime(timestamp);
+  if (diff < minute) return t('app.time.justNow');
+  if (diff < hour) return t('app.time.minutesAgo', { count: Math.floor(diff / minute) });
+  if (diff < day) return t('app.time.hoursAgo', { count: Math.floor(diff / hour) });
+  if (diff < day * 7) return t('app.time.daysAgo', { count: Math.floor(diff / day) });
+  if (diff < day * 30) return t('app.time.weeksAgo', { count: Math.floor(diff / (day * 7)) });
+  return new Date(timestamp).toLocaleDateString();
 };
 
 const cancelIndexing = async () => {
@@ -383,9 +518,9 @@ const cancelIndexing = async () => {
   }
   isCancelling.value = true;
   try {
-    await window.logViewerApi.cancelIndex(currentJobId.value);
+    await bridge.cancelIndex(currentJobId.value);
   } catch (error) {
-    reportError('取消任务失败', error);
+    reportError(t('app.errors.cancelIndexFailed'), error);
   } finally {
     isCancelling.value = false;
   }
@@ -401,22 +536,24 @@ onMounted(() => {
     .then(() => {
       syncQueryLimitFromPreference();
       applyThemePreference();
+      applyLanguagePreference();
     })
     .catch(() => {
       applyThemePreference();
+      applyLanguagePreference();
     });
   void refreshCacheSummary();
-  disposeMenuListener = window.logViewerApi.onMenuOpenFile(() => {
+  disposeMenuListener = bridge.onMenuOpenFile(() => {
     void handleMenuOpen();
   });
-  disposeHelpMenuListener = window.logViewerApi.onMenuOpenHelp(() => {
+  disposeHelpMenuListener = bridge.onMenuOpenHelp(() => {
     activeTab.value = 'help';
   });
-  disposeProgressListener = window.logViewerApi.onIndexProgress(handleIndexProgress);
-  disposeCompleteListener = window.logViewerApi.onIndexComplete(handleIndexComplete);
-  disposeAppErrorListener = window.logViewerApi.onAppError(handleAppError);
-  disposeIndexErrorListener = window.logViewerApi.onIndexError((payload) => {
-    reportError('索引错误', payload.message);
+  disposeProgressListener = bridge.onIndexProgress(handleIndexProgress);
+  disposeCompleteListener = bridge.onIndexComplete(handleIndexComplete);
+  disposeAppErrorListener = bridge.onAppError(handleAppError);
+  disposeIndexErrorListener = bridge.onIndexError((payload: { message: string }) => {
+    reportError(t('app.errors.indexError'), payload.message);
   });
   window.addEventListener('dragover', onDragOver);
   window.addEventListener('dragleave', onDragLeave);
@@ -441,13 +578,25 @@ onBeforeUnmount(() => {
   <main class="app-shell" :class="{ 'drag-active': isDragOver }">
     <header class="app-header">
       <div class="brand-block">
-        <h1>LogViewer Pro</h1>
-        <p>跨平台 GB 级日志解析工具</p>
+        <h1>{{ t('app.header.title') }}</h1>
+        <p>{{ t('app.header.subtitle') }}</p>
       </div>
       <div class="header-actions">
-        <button type="button" class="primary" @click="handleQuickOpenClick">快速打开日志</button>
-        <button type="button" @click="pingMainProcess">重新握手</button>
-        <p>最近握手：{{ handshakeTime }}</p>
+        <button type="button" class="primary" @click="handleQuickOpenClick">
+          {{ t('app.header.actions.quickOpen') }}
+        </button>
+        <button type="button" @click="pingMainProcess">
+          {{ t('app.header.actions.retryHandshake') }}
+        </button>
+        <p>{{ t('app.header.handshakeLabel') }} {{ handshakeDisplay }}</p>
+        <label class="language-switcher">
+          <span>{{ t('app.header.languageLabel') }}</span>
+          <select :value="currentLanguage" @change="handleLanguageChange">
+            <option v-for="option in languageOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
       </div>
     </header>
 
@@ -467,16 +616,16 @@ onBeforeUnmount(() => {
     <section v-if="activeTab === 'logs'" class="panel logs-panel">
       <div class="panel-header">
         <div>
-          <h2>日志解析工作区</h2>
-          <p>当前文件：{{ lastOpenedFile }}</p>
-          <p>
-            索引状态：{{ indexingMessage }} · 阶段：{{ progressPhase }} · 进度：{{ progressValue }}%
-          </p>
+          <h2>{{ t('app.logsPanel.title') }}</h2>
+          <p>{{ t('app.logsPanel.currentFile', { file: currentFileDisplay }) }}</p>
+          <p>{{ logsStatusText }}</p>
         </div>
         <div class="panel-actions">
-          <button type="button" class="primary" @click="handleQuickOpenClick">选择日志文件</button>
+          <button type="button" class="primary" @click="handleQuickOpenClick">
+            {{ t('app.logsPanel.buttons.chooseFile') }}
+          </button>
           <button type="button" :disabled="isIndexing" @click="refreshCacheSummary">
-            刷新缓存
+            {{ t('app.logsPanel.buttons.refreshCache') }}
           </button>
         </div>
       </div>
@@ -490,16 +639,14 @@ onBeforeUnmount(() => {
     <section v-else-if="activeTab === 'status'" class="panel status-panel">
       <div class="status-grid">
         <section class="status-card">
-          <h2>解析任务概览</h2>
-          <p>模板总数：{{ templateCount }} 个</p>
-          <p>最近文件：{{ lastOpenedFile }}</p>
-          <p>
-            索引状态：{{ indexingMessage }} · 阶段：{{ progressPhase }} · 进度：{{ progressValue }}%
-          </p>
-          <p>菜单触发：{{ menuInvokeCount }} 次</p>
-          <p>最新错误：{{ latestAppError }}</p>
+          <h2>{{ t('app.status.overviewTitle') }}</h2>
+          <p>{{ t('app.status.templateCount', { count: templateCount }) }}</p>
+          <p>{{ t('app.status.lastFile', { file: currentFileDisplay }) }}</p>
+          <p>{{ statusOverviewText }}</p>
+          <p>{{ t('app.status.menuInvoke', { count: menuInvokeCount }) }}</p>
+          <p>{{ t('app.status.latestError', { message: latestAppError ?? t('app.state.noError') }) }}</p>
           <div v-if="errorHistory.length > 0" class="error-board">
-            <h3>错误历史</h3>
+            <h3>{{ t('app.status.historyTitle') }}</h3>
             <ul>
               <li v-for="item in errorHistory" :key="item.timestamp">
                 <strong>{{ item.timestamp }}</strong> - {{ item.title }} · {{ item.message }}
@@ -511,31 +658,45 @@ onBeforeUnmount(() => {
 
         <section class="status-card">
           <div class="card-title">
-            <h2>缓存与索引</h2>
+            <h2>{{ t('app.cache.title') }}</h2>
             <span class="status-chip" :class="{ active: isIndexing }">
-              {{ isIndexing ? '进行中' : '空闲' }}
+              {{ isIndexing ? t('app.cache.chipActive') : t('app.cache.chipIdle') }}
             </span>
           </div>
           <div class="cache-box">
             <div>
-              <p>占用：{{ cacheSummary ? formatBytes(cacheSummary.totalSize) : '尚未统计' }}</p>
-              <small>缓存条目：{{ cacheSummary ? cacheSummary.entries.length : 0 }}</small>
-              <small class="cache-path">目录：{{ cacheDirPath }}</small>
+              <p>
+                {{
+                  t('app.cache.occupancy', {
+                    size: cacheSummary ? formatBytes(cacheSummary.totalSize) : t('app.cache.noStats')
+                  })
+                }}
+              </p>
+              <small>
+                {{
+                  t('app.cache.entries', {
+                    count: cacheSummary ? cacheSummary.entries.length : 0
+                  })
+                }}
+              </small>
+              <small class="cache-path">
+                {{ t('app.cache.dirLabel', { path: cacheDirPath }) }}
+              </small>
             </div>
             <div class="cache-actions">
               <button type="button" :disabled="cacheInfoLoading" @click="refreshCacheSummary">
-                {{ cacheInfoLoading ? '刷新中...' : '刷新' }}
+                {{ cacheInfoLoading ? t('app.cache.refreshing') : t('app.cache.refresh') }}
               </button>
-              <button type="button" @click="openCacheDir">打开目录</button>
+              <button type="button" @click="openCacheDir">{{ t('app.cache.openDir') }}</button>
               <button type="button" class="danger" :disabled="clearingCache" @click="clearCache">
-                {{ clearingCache ? '清理中...' : '清空缓存' }}
+                {{ clearingCache ? t('app.cache.clearing') : t('app.cache.clear') }}
               </button>
             </div>
           </div>
           <ul v-if="cacheEntriesView.length" class="cache-entry-list">
             <li v-for="entry in cacheEntriesView" :key="entry.cacheKey">
               <div class="cache-entry-meta">
-                <strong>{{ entry.templateName || '未命名模板' }}</strong>
+                <strong>{{ entry.templateName || t('app.recent.unnamedTemplate') }}</strong>
                 <span>{{ entry.displaySize }} · {{ entry.displayUpdatedAt }}</span>
                 <small>{{ entry.filePath }}</small>
               </div>
@@ -544,13 +705,13 @@ onBeforeUnmount(() => {
               </div>
             </li>
           </ul>
-          <p v-else class="empty-text">暂无缓存，完成索引后会自动生成。</p>
+          <p v-else class="empty-text">{{ t('app.cache.empty') }}</p>
 
           <div v-if="isIndexing" class="progress-box">
             <div class="progress-header">
-              <span>索引进度：{{ progressPhase }} ({{ progressValue }}%)</span>
+              <span>{{ cacheProgressText }}</span>
               <button type="button" :disabled="isCancelling" @click="cancelIndexing">
-                {{ isCancelling ? '取消中...' : '取消索引' }}
+                {{ isCancelling ? t('app.cache.cancelling') : t('app.cache.cancel') }}
               </button>
             </div>
             <progress :value="progressValue" max="100" />
@@ -562,34 +723,52 @@ onBeforeUnmount(() => {
             class="stats-box"
           >
             <p>
-              写入：{{ lastIndexStats.inserted ?? 0 }} · 未匹配：{{ lastIndexStats.skipped ?? 0 }}
+              {{
+                t('app.cache.stats', {
+                  inserted: lastIndexStats.inserted ?? 0,
+                  skipped: lastIndexStats.skipped ?? 0
+                })
+              }}
             </p>
             <div v-if="lastIndexStats.unmatched?.length" class="unmatched-box">
-              <p>未匹配示例（最多 5 行）</p>
+              <p>{{ t('app.cache.unmatchedHint') }}</p>
               <ul>
-                <li v-for="(line, index) in lastIndexStats.unmatched" :key="index">{{ line }}</li>
+                <li v-for="(line, index) in lastIndexStats.unmatched" :key="index">
+                  {{ line }}
+                </li>
               </ul>
             </div>
           </div>
         </section>
 
         <section class="status-card">
-          <h2>最近打开</h2>
-          <p v-if="recentItemsView.length === 0" class="empty-text">暂无打开记录</p>
+          <h2>{{ t('app.recent.title') }}</h2>
+          <p v-if="recentItemsView.length === 0" class="empty-text">
+            {{ t('app.recent.empty') }}
+          </p>
           <ul v-else class="recent-list">
             <li v-for="item in recentItemsView" :key="item.filePath" class="recent-item">
               <div class="recent-meta">
                 <div class="recent-title">
                   <strong>{{ item.displayName }}</strong>
-                  <span v-if="item.missingTemplate" class="badge">模板已删除</span>
+                  <span v-if="item.missingTemplate" class="badge">
+                    {{ t('app.recent.badgeMissingTemplate') }}
+                  </span>
                 </div>
                 <span class="recent-time">
-                  上次打开：{{ item.openedAtAbsolute }} · {{ item.openedAtRelative }}
+                  {{
+                    t('app.recent.lastOpened', {
+                      absolute: item.openedAtAbsolute,
+                      relative: item.openedAtRelative
+                    })
+                  }}
                 </span>
                 <small>{{ item.filePath }}</small>
               </div>
               <div class="recent-actions">
-                <button type="button" @click="reopenRecent(item)">重新打开</button>
+                <button type="button" @click="reopenRecent(item)">
+                  {{ t('app.recent.reopen') }}
+                </button>
               </div>
             </li>
           </ul>
@@ -610,21 +789,23 @@ onBeforeUnmount(() => {
     </section>
 
     <div v-if="isDragOver" class="drag-overlay">
-      <p>释放文件即可开始解析</p>
+      <p>{{ t('app.dragOverlay') }}</p>
     </div>
   </main>
 </template>
+
 
 <style scoped>
 .app-shell {
   min-height: 100vh;
   padding: 32px;
-  background: radial-gradient(circle at top, #1a2337 0%, #0b0d15 55%, #05060b 100%);
-  color: #f7f7fb;
+  background: var(--app-shell-bg);
+  color: var(--text-color);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .app-shell.drag-active {
-  border: 2px dashed rgba(111, 177, 255, 0.8);
+  border: 2px dashed rgba(63, 140, 255, 0.6);
 }
 
 .app-header {
@@ -642,7 +823,7 @@ onBeforeUnmount(() => {
 
 .brand-block p {
   margin: 6px 0 0;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--muted-text);
 }
 
 .header-actions {
@@ -653,15 +834,49 @@ onBeforeUnmount(() => {
 }
 
 .header-actions button {
-  border: none;
+  border: 1px solid var(--control-border);
   border-radius: 8px;
   padding: 8px 16px;
+  background-color: var(--control-bg);
+  color: var(--text-color);
   cursor: pointer;
 }
 
+.language-switcher {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-size: 12px;
+  color: var(--muted-text);
+}
+
+.language-switcher select {
+  margin-top: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--control-border);
+  padding: 6px 32px 6px 10px;
+  background-color: var(--control-bg);
+  color: var(--text-color);
+  min-width: 160px;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-text) 50%),
+    linear-gradient(135deg, var(--muted-text) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 2px),
+    calc(100% - 12px) calc(50% - 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+.language-switcher select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 45%, transparent);
+}
+
 .primary {
-  background-color: #3f8cff;
-  color: #fff;
+  background-color: var(--accent-color);
+  color: var(--accent-contrast);
 }
 
 .main-nav {
@@ -672,20 +887,21 @@ onBeforeUnmount(() => {
 }
 
 .nav-item {
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--panel-border);
   border-radius: 12px;
   padding: 10px 16px;
-  background: transparent;
-  color: #d7deff;
+  background: var(--panel-bg);
+  color: var(--text-color);
   cursor: pointer;
   flex: 1 1 180px;
   text-align: left;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .nav-item.active {
-  background: rgba(63, 140, 255, 0.2);
+  background: rgba(63, 140, 255, 0.15);
   border-color: rgba(63, 140, 255, 0.8);
-  color: #fff;
+  color: var(--accent-contrast);
 }
 
 .nav-item .nav-label {
@@ -696,15 +912,16 @@ onBeforeUnmount(() => {
 .nav-item small {
   display: block;
   margin-top: 4px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--muted-text);
   font-size: 12px;
 }
 
 .panel {
-  background-color: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: var(--panel-bg);
+  border: 1px solid var(--panel-border);
   border-radius: 16px;
   padding: 20px;
+  color: var(--text-color);
 }
 
 .help-panel {
@@ -727,7 +944,7 @@ onBeforeUnmount(() => {
 
 .panel-header p {
   margin: 4px 0 0;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--muted-text);
 }
 
 .panel-actions {
@@ -738,11 +955,11 @@ onBeforeUnmount(() => {
 }
 
 .panel-actions button {
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--control-border);
   border-radius: 8px;
   padding: 8px 16px;
-  background: transparent;
-  color: #f7f7fb;
+  background: var(--control-bg);
+  color: var(--text-color);
   cursor: pointer;
 }
 
@@ -758,11 +975,12 @@ onBeforeUnmount(() => {
 }
 
 .status-card {
-  background-color: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: var(--panel-bg);
+  border: 1px solid var(--panel-border);
   border-radius: 16px;
   padding: 16px;
   min-height: 220px;
+  color: var(--text-color);
 }
 
 .status-card h2 {
@@ -784,7 +1002,7 @@ onBeforeUnmount(() => {
 }
 
 .status-chip.active {
-  background-color: rgba(79, 195, 247, 0.3);
+  background-color: rgba(79, 195, 247, 0.4);
 }
 
 .cache-box {
@@ -793,8 +1011,8 @@ onBeforeUnmount(() => {
   gap: 12px;
   padding: 12px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--panel-border);
+  background-color: var(--panel-bg);
 }
 
 .cache-box p {
@@ -802,7 +1020,7 @@ onBeforeUnmount(() => {
 }
 
 .cache-box small {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--muted-text);
 }
 
 .cache-actions {
@@ -812,16 +1030,17 @@ onBeforeUnmount(() => {
 }
 
 .cache-actions button {
-  border: none;
+  border: 1px solid var(--control-border);
   border-radius: 8px;
   padding: 6px 12px;
   cursor: pointer;
-  background-color: #455a64;
-  color: #fff;
+  background-color: var(--control-bg);
+  color: var(--text-color);
 }
 
 .cache-actions .danger {
   background-color: #ef5350;
+  color: #fff;
 }
 
 .cache-entry-list,
@@ -838,8 +1057,8 @@ onBeforeUnmount(() => {
 .recent-item {
   padding: 12px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background-color: rgba(0, 0, 0, 0.24);
+  border: 1px solid var(--panel-border);
+  background-color: var(--panel-bg);
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -848,14 +1067,14 @@ onBeforeUnmount(() => {
 .cache-entry-meta small,
 .recent-meta small {
   display: block;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--muted-text);
   margin-top: 4px;
   word-break: break-all;
 }
 
 .cache-entry-stats span {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--muted-text);
 }
 
 .progress-box,
@@ -863,8 +1082,8 @@ onBeforeUnmount(() => {
   margin-top: 16px;
   padding: 12px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--panel-border);
+  background-color: var(--panel-bg);
 }
 
 .progress-header {
@@ -898,13 +1117,13 @@ progress {
   margin-top: 12px;
   padding: 12px;
   border-radius: 12px;
-  background-color: rgba(255, 82, 82, 0.15);
-  border: 1px solid rgba(255, 82, 82, 0.3);
+  background-color: rgba(255, 82, 82, 0.12);
+  border: 1px solid rgba(255, 82, 82, 0.35);
 }
 
 .drag-error,
 .empty-text {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--muted-text);
   margin-top: 12px;
 }
 
@@ -921,7 +1140,7 @@ progress {
 .recent-time {
   display: block;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--muted-text);
   margin-top: 4px;
 }
 
@@ -929,8 +1148,8 @@ progress {
   border: none;
   border-radius: 8px;
   padding: 6px 12px;
-  background-color: #3f8cff;
-  color: #fff;
+  background-color: var(--accent-color);
+  color: var(--accent-contrast);
   cursor: pointer;
 }
 
@@ -945,12 +1164,12 @@ progress {
 .drag-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.65);
+  background-color: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  color: #ffffff;
+  color: var(--text-color);
   z-index: 1000;
   pointer-events: none;
 }

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useSystemLogStore } from '../../stores/systemLogStore';
 
 const logStore = useSystemLogStore();
 const { logs, loading, error, limit } = storeToRefs(logStore);
+const { t } = useI18n();
 
 const refreshLogs = () => {
   void logStore.fetchRecent();
@@ -25,12 +27,12 @@ onMounted(() => {
   <section class="system-log-panel">
     <header>
       <div>
-        <h2>系统日志</h2>
-        <p>展示主进程/Worker/Renderer 统一写入的 app.log，便于快速排查。</p>
+        <h2>{{ t('systemLog.title') }}</h2>
+        <p>{{ t('systemLog.description') }}</p>
       </div>
       <div class="actions">
         <label>
-          保留行数
+          {{ t('systemLog.retainLabel') }}
           <input
             type="number"
             :value="limit"
@@ -41,7 +43,7 @@ onMounted(() => {
           />
         </label>
         <button type="button" :disabled="loading" @click="refreshLogs">
-          {{ loading ? '刷新中...' : '刷新日志' }}
+          {{ loading ? t('systemLog.refreshing') : t('systemLog.refresh') }}
         </button>
       </div>
     </header>
@@ -54,7 +56,7 @@ onMounted(() => {
         </div>
         <pre>{{ log.message }}</pre>
       </article>
-      <p v-if="!logs.length && !loading" class="empty-text">暂无日志，请稍后刷新。</p>
+      <p v-if="!logs.length && !loading" class="empty-text">{{ t('systemLog.empty') }}</p>
     </div>
   </section>
 </template>
@@ -64,8 +66,8 @@ onMounted(() => {
   margin-top: 24px;
   padding: 16px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--panel-border);
+  background-color: var(--panel-bg);
 }
 
 header {
@@ -89,25 +91,31 @@ label {
   display: flex;
   flex-direction: column;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--muted-text);
 }
 
 input {
   margin-top: 4px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--control-border);
   padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.4);
-  color: #fff;
+  background: var(--control-bg);
+  color: var(--text-color);
   width: 100px;
 }
 
+input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 35%, transparent);
+}
+
 button {
-  border: none;
+  border: 1px solid transparent;
   border-radius: 8px;
   padding: 8px 16px;
-  background-color: #3f8cff;
-  color: #fff;
+  background-color: var(--accent-color);
+  color: var(--accent-contrast);
   cursor: pointer;
 }
 
@@ -123,8 +131,8 @@ button {
 .log-item {
   padding: 12px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--panel-border);
+  background-color: var(--surface-color);
   font-size: 13px;
 }
 
@@ -133,7 +141,7 @@ button {
   justify-content: space-between;
   font-size: 12px;
   margin-bottom: 6px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--muted-text);
 }
 
 .log-item[data-level='ERROR'] {
@@ -161,7 +169,7 @@ button {
 }
 
 .empty-text {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--muted-text);
   text-align: center;
   margin: 0;
 }

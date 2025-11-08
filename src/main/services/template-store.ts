@@ -1,4 +1,4 @@
-import Store from 'electron-store';
+import Store, { type Options as StoreOptions } from 'electron-store';
 import { randomUUID } from 'node:crypto';
 import type { LogTemplate, SaveTemplatePayload } from '@shared/models/log-template';
 import { validateTemplatePayload } from './template-validator';
@@ -21,6 +21,7 @@ interface ImportResult {
 }
 
 const STORE_VERSION = 1;
+const STORE_PROJECT_NAME = 'LogViewerPro';
 
 /**
  * 模板存储服务：负责读写 electron-store，并提供基础校验。
@@ -30,12 +31,13 @@ export class TemplateStore {
 
   constructor() {
     this.store = new Store<TemplateStoreSchema>({
+      projectName: STORE_PROJECT_NAME,
       name: 'templates',
       defaults: {
         version: STORE_VERSION,
         templates: []
       }
-    });
+    } as StoreOptions<TemplateStoreSchema>);
     this.migrateIfNeeded();
   }
 
@@ -65,7 +67,7 @@ export class TemplateStore {
     if (template.id) {
       const index = templates.findIndex((item) => item.id === template.id);
       if (index === -1) {
-        throw new Error(`模板 ${template.id} 不存在，无法更新`);
+        throw new Error('Selected template does not exist. Please refresh and try again.');
       }
 
       const updatedTemplate: LogTemplate = {
@@ -75,7 +77,7 @@ export class TemplateStore {
       };
       templates[index] = updatedTemplate;
       this.store.set('templates', templates);
-      logger.info('模板已更新', {
+      logger.info('Template updated', {
         id: updatedTemplate.id,
         name: updatedTemplate.name,
         namedGroups
@@ -94,7 +96,7 @@ export class TemplateStore {
     };
     templates.push(newTemplate);
     this.store.set('templates', templates);
-    logger.info('模板已创建', { id: newTemplate.id, name: newTemplate.name, namedGroups });
+    logger.info('Template created', { id: newTemplate.id, name: newTemplate.name, namedGroups });
     return newTemplate;
   }
 
@@ -105,7 +107,7 @@ export class TemplateStore {
     const templates = this.getAll();
     const filtered = templates.filter((item) => item.id !== templateId);
     this.store.set('templates', filtered);
-    logger.warn('模板已删除', { id: templateId });
+    logger.warn('Template deleted', { id: templateId });
   }
 
   /**
@@ -118,7 +120,10 @@ export class TemplateStore {
   /**
    * 导入模板集合，可选择按名称覆盖。
    */
-  public importTemplates(data: SaveTemplatePayload[], options: ImportOptions = {}): ImportResult {
+  public importTemplates(
+    data: SaveTemplatePayload[],
+    options: ImportOptions = {}
+  ): ImportResult {
     const templates = this.getAll();
     const { overwrite = false } = options;
     const summary: ImportResult = { added: 0, updated: 0, skipped: 0, errors: [] };
@@ -139,7 +144,7 @@ export class TemplateStore {
           };
           templates[existingIndex] = updatedTemplate;
           summary.updated += 1;
-          logger.info('导入覆盖模板', { name: payload.name, namedGroups });
+          logger.info('Template import overwrite', { name: payload.name, namedGroups });
           continue;
         }
 
@@ -154,14 +159,17 @@ export class TemplateStore {
         };
         templates.push(newTemplate);
         summary.added += 1;
-        logger.info('导入新增模板', { name: payload.name, namedGroups });
+        logger.info('Template import added', { name: payload.name, namedGroups });
       } catch (error) {
         summary.errors.push({
           name: payload.name,
           reason: (error as Error).message
         });
         summary.skipped += 1;
-        logger.warn('模板导入失败', { name: payload.name, reason: (error as Error).message });
+        logger.warn('Template import failed', {
+          name: payload.name,
+          reason: (error as Error).message
+        });
       }
     }
 
@@ -182,7 +190,7 @@ export class TemplateStore {
     }));
     this.store.set('templates', templates);
     this.store.set('version', STORE_VERSION);
-    logger.info('模板存储已迁移', { from: currentVersion, to: STORE_VERSION });
+    logger.info('Template store migrated', { from: currentVersion, to: STORE_VERSION });
   }
 }
 
@@ -192,6 +200,6 @@ const ensureNameUnique = (templates: LogTemplate[], payload: SaveTemplatePayload
     (item) => item.name === normalizedName && (!payload.id || item.id !== payload.id)
   );
   if (duplicated) {
-    throw new Error(`已存在名称为 "${normalizedName}" 的模板`);
+    throw new Error(`A template named "${normalizedName}" already exists.`);
   }
 };

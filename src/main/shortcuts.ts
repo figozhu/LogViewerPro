@@ -1,10 +1,15 @@
-import { BrowserWindow, globalShortcut } from 'electron';
+﻿import electron from './electron-shim';
+import type { BrowserWindow as ElectronBrowserWindow } from 'electron';
+
+const electronApi = electron ?? ({} as typeof import('electron'));
+const { BrowserWindow, globalShortcut } = electronApi;
 
 /**
- * 注册全局快捷键，便于开发调试和基础操作。
- * @param mainWindow 主窗口实例
- */
-export function registerGlobalShortcuts(mainWindow: BrowserWindow): void {
+ * 娉ㄥ唽鍏ㄥ眬蹇嵎閿紝渚夸簬寮€鍙戣皟璇曞拰鍩虹鎿嶄綔銆? * @param mainWindow 涓荤獥鍙ｅ疄渚? */
+export function registerGlobalShortcuts(mainWindow: ElectronBrowserWindow): void {
+  if (!globalShortcut) {
+    return;
+  }
   const bindings: Record<string, () => void> = {
     'CommandOrControl+R': () => {
       if (!mainWindow.isDestroyed()) {
@@ -25,14 +30,15 @@ export function registerGlobalShortcuts(mainWindow: BrowserWindow): void {
   for (const [shortcut, handler] of Object.entries(bindings)) {
     const success = globalShortcut.register(shortcut, handler);
     if (!success) {
-      console.warn(`[Shortcuts] 无法注册快捷键：${shortcut}`);
+      console.warn(`[Shortcuts] Failed to register shortcut: ${shortcut}`);
     }
   }
 }
 
 /**
- * 解除所有已注册的全局快捷键，避免应用退出后仍占用。
- */
+ * 瑙ｉ櫎鎵€鏈夊凡娉ㄥ唽鐨勫叏灞€蹇嵎閿紝閬垮厤搴旂敤閫€鍑哄悗浠嶅崰鐢ㄣ€? */
 export function unregisterGlobalShortcuts(): void {
-  globalShortcut.unregisterAll();
+  globalShortcut?.unregisterAll();
 }
+
+

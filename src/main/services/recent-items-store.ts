@@ -1,4 +1,4 @@
-import Store from 'electron-store';
+﻿import Store, { type Options as StoreOptions } from 'electron-store';
 
 interface RecentItem {
   filePath: string;
@@ -11,21 +11,22 @@ interface RecentItemsSchema {
   items: RecentItem[];
 }
 
+const STORE_PROJECT_NAME = 'LogViewerPro';
 const MAX_ITEMS = 10;
 
 /**
- * 管理最近打开的文件列表，用于模板选择流程中的快速访问。
- */
+ * 绠＄悊鏈€杩戞墦寮€鐨勬枃浠跺垪琛紝鐢ㄤ簬妯℃澘閫夋嫨娴佺▼涓殑蹇€熻闂€? */
 export class RecentItemsStore {
   private store: Store<RecentItemsSchema>;
 
   constructor() {
     this.store = new Store<RecentItemsSchema>({
+      projectName: STORE_PROJECT_NAME,
       name: 'recent-items',
       defaults: {
         items: []
       }
-    });
+    } as StoreOptions<RecentItemsSchema>);
   }
 
   public save(filePath: string, templateId: string, templateName = ''): void {

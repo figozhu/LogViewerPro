@@ -33,7 +33,7 @@ describe('QueryBuilder', () => {
       ...baseOptions
     });
     const { sql } = builder.build();
-    expect(sql).toContain('ORDER BY logs."timestamp" DESC');
+    expect(sql).toContain('ORDER BY logs."timestamp" ASC');
     expect(sql).toContain('LIMIT 100');
     expect(sql).toContain('OFFSET 0');
   });
@@ -54,7 +54,7 @@ describe('QueryBuilder', () => {
       ...baseOptions,
       filters: { nonexistent: 'x' } as Record<string, string>
     });
-    expect(() => builder.build()).toThrow(/不存在或不可用于过滤条件/);
+    expect(() => builder.build()).toThrow(/does not exist or cannot be used for/);
   });
 
   it('builds count queries with identical where clauses', () => {

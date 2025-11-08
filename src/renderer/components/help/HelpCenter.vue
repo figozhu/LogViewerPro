@@ -1,71 +1,34 @@
 <script setup lang="ts">
-/**
- * 快速上手步骤的数据结构，方便未来扩展或本地化
- */
-const quickSteps: Array<{ title: string; description: string }> = [
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
+
+const quickSteps = [
+  { titleKey: 'help.quickSteps.step1.title', descKey: 'help.quickSteps.step1.description' },
+  { titleKey: 'help.quickSteps.step2.title', descKey: 'help.quickSteps.step2.description' },
+  { titleKey: 'help.quickSteps.step3.title', descKey: 'help.quickSteps.step3.description' },
+  { titleKey: 'help.quickSteps.step4.title', descKey: 'help.quickSteps.step4.description' }
+];
+
+const shortcuts = [
+  { key: () => t('help.shortcuts.open.key'), usage: () => t('help.shortcuts.open.usage') },
+  { key: () => t('help.shortcuts.search.key'), usage: () => t('help.shortcuts.search.usage') },
+  { key: () => t('help.shortcuts.switchLogs.key'), usage: () => t('help.shortcuts.switchLogs.usage') },
   {
-    title: '1. 选择或创建模板',
-    description: '在“模板管理”中配置命名捕获组，确保时间字段与全文字段已指定。'
-  },
-  {
-    title: '2. 打开日志文件',
-    description: '可以通过文件菜单、拖拽或主界面的“快速打开”按钮触发文件选择。'
-  },
-  {
-    title: '3. 等待解析完成',
-    description: '首次解析会建立索引，进度与缓存信息可在“运行状态”标签中查看。'
-  },
-  {
-    title: '4. 搜索与筛选',
-    description: '利用全文搜索与自动生成的筛选器快速定位关键信息。'
+    key: () => t('help.shortcuts.preferences.key'),
+    usage: () => t('help.shortcuts.preferences.usage')
   }
 ];
 
-/**
- * 常见快捷键与操作提示
- */
-const shortcuts: Array<{ key: string; usage: string }> = [
-  { key: 'Ctrl/Cmd + O', usage: '打开日志文件' },
-  { key: 'Ctrl/Cmd + F', usage: '聚焦全文搜索输入框' },
-  { key: 'Ctrl/Cmd + L', usage: '快速切换到日志标签（可自定义）' },
-  { key: 'Ctrl/Cmd + ,', usage: '打开用户偏好设置（自定义查询条数等）' }
+const faqList = [
+  { questionKey: 'help.faq.slowIndex.question', answerKey: 'help.faq.slowIndex.answer' },
+  { questionKey: 'help.faq.jsonField.question', answerKey: 'help.faq.jsonField.answer' },
+  { questionKey: 'help.faq.resetPreference.question', answerKey: 'help.faq.resetPreference.answer' }
 ];
 
-/**
- * 常见问题与提示合集
- */
-const faqList: Array<{ question: string; answer: string }> = [
-  {
-    question: '索引耗时较长怎么办？',
-    answer:
-      '确保模板正则尽量精准以减少未匹配行，同时可以在“运行状态”中查看缓存占用，必要时清理后重试。'
-  },
-  {
-    question: '字段内容是 JSON 时难以阅读？',
-    answer: '行详情面板会自动尝试 Pretty Print，如果仍为原始格式，可复制后在外部工具中查看。'
-  },
-  {
-    question: '怎样恢复默认主题或查询条数？',
-    answer: '前往“偏好设置”标签即可调整主题、默认查询行数与窗口记忆等选项。'
-  }
-];
-
-/**
- * 支持信息与反馈渠道
- */
-const supportTips: Array<{ title: string; detail: string }> = [
-  {
-    title: 'GitHub Issues',
-    detail: 'https://github.com/figozhu/LogViewerPro/issues'
-  },
-  {
-    title: '提交日志反馈',
-    detail: '在系统日志标签中导出最近的错误记录，附带说明即可快速定位问题。'
-  },
-  {
-    title: '产品路线',
-    detail: '欢迎在项目主页的 Discussions 中提出新需求与改进建议。'
-  }
+const supportTips = [
+  { titleKey: 'help.support.issues.title', detailKey: 'help.support.issues.detail' },
+  { titleKey: 'help.support.logs.title', detailKey: 'help.support.logs.detail' },
+  { titleKey: 'help.support.roadmap.title', detailKey: 'help.support.roadmap.detail' }
 ];
 </script>
 
@@ -73,8 +36,8 @@ const supportTips: Array<{ title: string; detail: string }> = [
   <section class="help-center">
     <header class="help-header">
       <div>
-        <h2>使用帮助</h2>
-        <p>了解如何高效地解析大型日志文件，并掌握常用快捷操作。</p>
+        <h2>{{ t('help.header.title') }}</h2>
+        <p>{{ t('help.header.description') }}</p>
       </div>
       <a
         class="primary-link"
@@ -82,48 +45,48 @@ const supportTips: Array<{ title: string; detail: string }> = [
         target="_blank"
         rel="noreferrer"
       >
-        查看项目主页
+        {{ t('help.header.homepage') }}
       </a>
     </header>
 
     <section class="help-section">
-      <h3>快速上手</h3>
+      <h3>{{ t('help.sections.quickStart') }}</h3>
       <ul class="step-list">
-        <li v-for="item in quickSteps" :key="item.title">
-          <strong>{{ item.title }}</strong>
-          <p>{{ item.description }}</p>
+        <li v-for="item in quickSteps" :key="item.titleKey">
+          <strong>{{ t(item.titleKey) }}</strong>
+          <p>{{ t(item.descKey) }}</p>
         </li>
       </ul>
     </section>
 
     <section class="help-section">
-      <h3>常用快捷键</h3>
+      <h3>{{ t('help.sections.shortcuts') }}</h3>
       <table class="shortcut-table">
         <tbody>
-          <tr v-for="item in shortcuts" :key="item.key">
-            <td class="shortcut-key">{{ item.key }}</td>
-            <td>{{ item.usage }}</td>
+          <tr v-for="item in shortcuts" :key="item.key()">
+            <td class="shortcut-key">{{ item.key() }}</td>
+            <td>{{ item.usage() }}</td>
           </tr>
         </tbody>
       </table>
     </section>
 
     <section class="help-section">
-      <h3>常见问题</h3>
+      <h3>{{ t('help.sections.faq') }}</h3>
       <div class="faq-list">
-        <article v-for="item in faqList" :key="item.question">
-          <h4>{{ item.question }}</h4>
-          <p>{{ item.answer }}</p>
+        <article v-for="item in faqList" :key="item.questionKey">
+          <h4>{{ t(item.questionKey) }}</h4>
+          <p>{{ t(item.answerKey) }}</p>
         </article>
       </div>
     </section>
 
     <section class="help-section">
-      <h3>反馈与支持</h3>
+      <h3>{{ t('help.sections.support') }}</h3>
       <ul class="support-list">
-        <li v-for="tip in supportTips" :key="tip.title">
-          <strong>{{ tip.title }}</strong>
-          <span>{{ tip.detail }}</span>
+        <li v-for="tip in supportTips" :key="tip.titleKey">
+          <strong>{{ t(tip.titleKey) }}</strong>
+          <span>{{ t(tip.detailKey) }}</span>
         </li>
       </ul>
     </section>
@@ -132,11 +95,11 @@ const supportTips: Array<{ title: string; detail: string }> = [
 
 <style scoped>
 .help-center {
-  background-color: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: var(--panel-bg);
+  border: 1px solid var(--panel-border);
   border-radius: 16px;
   padding: 24px;
-  color: #f6f6fb;
+  color: var(--text-color);
   line-height: 1.6;
 }
 
@@ -151,9 +114,9 @@ const supportTips: Array<{ title: string; detail: string }> = [
 .primary-link {
   padding: 10px 16px;
   border-radius: 10px;
-  background-color: rgba(63, 140, 255, 0.2);
-  border: 1px solid rgba(63, 140, 255, 0.6);
-  color: #9ec5ff;
+  background-color: color-mix(in srgb, var(--accent-color) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-color) 65%, transparent);
+  color: var(--accent-color);
   text-decoration: none;
   font-weight: 600;
 }
@@ -174,21 +137,22 @@ const supportTips: Array<{ title: string; detail: string }> = [
 .step-list li {
   padding: 16px;
   border-radius: 12px;
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background-color: var(--surface-color);
+  border: 1px solid var(--panel-border);
 }
 
 .shortcut-table {
   width: 100%;
   border-collapse: collapse;
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: var(--surface-color);
   border-radius: 12px;
   overflow: hidden;
+  border: 1px solid var(--panel-border);
 }
 
 .shortcut-table td {
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--panel-border);
 }
 
 .shortcut-table tr:last-child td {
@@ -198,7 +162,7 @@ const supportTips: Array<{ title: string; detail: string }> = [
 .shortcut-key {
   width: 200px;
   font-weight: 600;
-  color: #c3d5ff;
+  color: var(--accent-color);
 }
 
 .faq-list {
@@ -210,8 +174,8 @@ const supportTips: Array<{ title: string; detail: string }> = [
 .faq-list article {
   padding: 16px;
   border-radius: 12px;
-  background-color: rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: var(--surface-color);
+  border: 1px solid var(--panel-border);
 }
 
 .faq-list h4 {
@@ -231,15 +195,15 @@ const supportTips: Array<{ title: string; detail: string }> = [
 .support-list li {
   padding: 12px 16px;
   border-radius: 10px;
-  background-color: rgba(63, 140, 255, 0.08);
-  border: 1px solid rgba(63, 140, 255, 0.2);
+  background-color: color-mix(in srgb, var(--accent-color) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-color) 35%, transparent);
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
 .support-list span {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--muted-text);
   word-break: break-all;
 }
 

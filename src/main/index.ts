@@ -49,6 +49,24 @@ async function createMainWindow(): Promise<BrowserWindow> {
 
   mainWindow = new BrowserWindow(browserOptions);
 
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    logger.info(`[RendererConsole:${level}] ${message} (${sourceId}:${line})`);
+  });
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    logger.error(
+      `[RendererLoadFailed] code=${errorCode} desc=${errorDescription} url=${validatedURL}`
+    );
+  });
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    logger.error('[RendererCrashed]', details);
+  });
+
+  mainWindow.webContents.once('did-finish-load', () => {
+    logger.info('[Renderer] did-finish-load');
+  });
+
   const persistWindowState = () => {
     if (!preferencesStore.get().rememberWindowState || !mainWindow || mainWindow.isDestroyed()) {
       return;
@@ -87,10 +105,12 @@ async function createMainWindow(): Promise<BrowserWindow> {
   if (url) {
     // 开发模式下直接指向 Vite Dev Server，保证热重载
     await mainWindow.loadURL(url);
+    logger.info('[Renderer] Loaded dev server URL', url);
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     // 生产模式加载打包后的文件
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
+    logger.info('[Renderer] Loaded production bundle');
   }
 
   return mainWindow;
@@ -100,7 +120,8 @@ app.whenReady().then(async () => {
   initLogger();
   setupGlobalErrorHandling({
     getMainWindow: () => mainWindow,
-    forward: forwardToRenderer
+    forward: forwardToRenderer,
+    getLocale: () => preferencesStore.get().language
   });
   logger.info('Application ready, creating main window');
 

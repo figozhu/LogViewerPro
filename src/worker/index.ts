@@ -14,7 +14,7 @@ const activeJobs = new Map<string, LogIndexer>();
 const bootstrapWorker = () => {
   const port = parentPort;
   if (!port) {
-    throw new Error('当前线程不是 worker 线程，无法启动索引引擎');
+    throw new Error('Current thread is not a worker; cannot start the indexing engine.');
   }
 
   port.on('message', (message: MainToWorkerMessage) => {
@@ -31,7 +31,7 @@ const bootstrapWorker = () => {
     port.postMessage({
       type: IPC_CHANNELS.INDEX_ERROR,
       payload: {
-        message: `未识别的 Worker 消息类型: ${message?.['type'] ?? 'unknown'}`
+        message: `Unrecognized worker message type: ${message?.['type'] ?? 'unknown'}`
       }
     });
   });

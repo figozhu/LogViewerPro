@@ -1,4 +1,6 @@
-import { app } from 'electron';
+﻿import electron from '../electron-shim';
+const electronApi = electron ?? ({} as typeof import('electron'));
+const { app } = electronApi;
 import { createHash } from 'node:crypto';
 import {
   mkdirSync,
@@ -39,13 +41,12 @@ interface CacheMeta {
 }
 
 /**
- * 负责管理索引缓存的命名、路径、有效性与元数据。
- */
+ * 璐熻矗绠＄悊绱㈠紩缂撳瓨鐨勫懡鍚嶃€佽矾寰勩€佹湁鏁堟€т笌鍏冩暟鎹€? */
 export class IndexCacheManager {
   private cacheDir: string;
 
   constructor() {
-    const baseDir = app.getPath('userData');
+    const baseDir = app?.getPath('userData') ?? join(process.cwd(), '.cache');
     this.cacheDir = join(baseDir, 'index_cache');
     if (!existsSync(this.cacheDir)) {
       mkdirSync(this.cacheDir, { recursive: true });
@@ -53,8 +54,7 @@ export class IndexCacheManager {
   }
 
   /**
-   * 根据文件与模板生成缓存信息。
-   */
+   * 鏍规嵁鏂囦欢涓庢ā鏉跨敓鎴愮紦瀛樹俊鎭€?   */
   public async resolve(filePath: string, template: LogTemplate): Promise<CacheInfo> {
     const cacheKey = createHash('md5').update(`${filePath}::${template.regex}`).digest('hex');
     const dbPath = join(this.cacheDir, `${cacheKey}.db`);
@@ -75,8 +75,7 @@ export class IndexCacheManager {
   }
 
   /**
-   * 检查缓存是否有效（db 文件存在且 mtime 未变化）。
-   */
+   * 妫€鏌ョ紦瀛樻槸鍚︽湁鏁堬紙db 鏂囦欢瀛樺湪涓?mtime 鏈彉鍖栵級銆?   */
   public async isCacheValid(info: CacheInfo): Promise<boolean> {
     if (!existsSync(info.dbPath) || !existsSync(info.metaPath)) {
       return false;
@@ -91,8 +90,7 @@ export class IndexCacheManager {
   }
 
   /**
-   * 写入缓存元数据，用于后续命中判断。
-   */
+   * 鍐欏叆缂撳瓨鍏冩暟鎹紝鐢ㄤ簬鍚庣画鍛戒腑鍒ゆ柇銆?   */
   public writeMeta(info: CacheInfo): void {
     const meta: CacheMeta = {
       cacheKey: info.cacheKey,
@@ -118,8 +116,7 @@ export class IndexCacheManager {
   }
 
   /**
-   * 汇总缓存占用情况。
-   */
+   * 姹囨€荤紦瀛樺崰鐢ㄦ儏鍐点€?   */
   public getSummary(): CacheSummary {
     const entries: CacheSummary['entries'] = [];
     let totalSize = 0;
@@ -178,3 +175,9 @@ export class IndexCacheManager {
     return this.cacheDir;
   }
 }
+
+
+
+
+
+

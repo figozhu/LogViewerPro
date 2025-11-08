@@ -1,6 +1,9 @@
-import { app } from 'electron';
+﻿import electron from './electron-shim';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+const electronApi = electron ?? ({} as typeof import('electron'));
+const { app } = electronApi;
 
 export type LogLevel = 'INFO' | 'WARN' | 'ERROR';
 
@@ -8,9 +11,12 @@ let logFilePath: string | null = null;
 let logDirPath: string | null = null;
 
 /**
- * 初始化日志存储路径，默认写入用户数据目录下的 logs/app.log。
- */
+ * 鍒濆鍖栨棩蹇楀瓨鍌ㄨ矾寰勶紝榛樿鍐欏叆鐢ㄦ埛鏁版嵁鐩綍涓嬬殑 logs/app.log銆? */
 export function initLogger(): void {
+  if (!app) {
+    console.warn('[Logger] Electron APIs unavailable; skip log initialization.');
+    return;
+  }
   const baseDir = app.getPath('userData');
   const logDir = join(baseDir, 'logs');
   if (!existsSync(logDir)) {
@@ -22,8 +28,7 @@ export function initLogger(): void {
 }
 
 /**
- * 统一的日志写入入口。
- */
+ * 缁熶竴鐨勬棩蹇楀啓鍏ュ叆鍙ｃ€? */
 function writeLog(level: LogLevel, message: string, meta?: unknown): void {
   const timestamp = new Date().toISOString();
   const metaString =
@@ -35,8 +40,8 @@ function writeLog(level: LogLevel, message: string, meta?: unknown): void {
     try {
       appendFileSync(logFilePath, line, { encoding: 'utf-8' });
     } catch {
-      // 如果文件写入失败，至少确保控制台可见
-      console.error('无法写入日志文件，请检查磁盘权限。', line);
+      // 濡傛灉鏂囦欢鍐欏叆澶辫触锛岃嚦灏戠‘淇濇帶鍒跺彴鍙
+      console.error('Unable to write log file. Please check disk permissions.', line);
     }
   }
   if (level === 'ERROR') {
@@ -100,3 +105,6 @@ function parseLogLine(
     raw: line
   };
 }
+
+
+

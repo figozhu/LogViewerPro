@@ -1,22 +1,21 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useTemplateStore } from '../../stores/templateStore';
 
-/**
- * 模板管理界面：左侧展示模板列表，右侧用于编辑表单与正则测试。
- */
 const templateStore = useTemplateStore();
 const { templates, loading, saving, currentForm, mode, errorMessage, testResults } =
   storeToRefs(templateStore);
+const { t } = useI18n();
 
 const isEditing = computed(() => mode.value === 'editing');
 const isCreating = computed(() => mode.value === 'creating');
 
 const actionTitle = computed(() => {
-  if (isEditing.value) return '编辑模板';
-  if (isCreating.value) return '创建模板';
-  return '请选择左侧模板或创建新模板';
+  if (isEditing.value) return t('templateManager.panelTitle.edit');
+  if (isCreating.value) return t('templateManager.panelTitle.create');
+  return t('templateManager.panelTitle.idle');
 });
 
 const handleSave = async () => {
@@ -32,7 +31,7 @@ const handleCancel = () => {
 };
 
 const handleDelete = async (id: string) => {
-  if (confirm('确定要删除该模板吗？此操作不可恢复。')) {
+  if (confirm(t('templateManager.confirmDelete'))) {
     await templateStore.deleteTemplate(id);
   }
 };
@@ -50,10 +49,12 @@ onMounted(() => {
   <div class="template-manager">
     <aside class="template-list">
       <div class="header">
-        <h2>模板列表</h2>
-        <button type="button" class="primary" @click="handleCreate">新建模板</button>
+        <h2>{{ t('templateManager.listTitle') }}</h2>
+        <button type="button" class="primary" @click="handleCreate">
+          {{ t('templateManager.createButton') }}
+        </button>
       </div>
-      <p v-if="loading">正在加载模板...</p>
+      <p v-if="loading">{{ t('templateManager.loading') }}</p>
       <ul v-else>
         <li
           v-for="template in templates"
@@ -62,13 +63,22 @@ onMounted(() => {
         >
           <div>
             <strong>{{ template.name }}</strong>
-            <small
-              >时间字段: {{ template.timestampField }} ｜ 全文字段: {{ template.ftsField }}</small
-            >
+            <small>
+              {{
+                t('templateManager.meta', {
+                  timestamp: template.timestampField,
+                  fts: template.ftsField
+                })
+              }}
+            </small>
           </div>
           <div class="actions">
-            <button type="button" @click="templateStore.startEdit(template)">编辑</button>
-            <button type="button" class="danger" @click="handleDelete(template.id)">删除</button>
+            <button type="button" @click="templateStore.startEdit(template)">
+              {{ t('templateManager.edit') }}
+            </button>
+            <button type="button" class="danger" @click="handleDelete(template.id)">
+              {{ t('templateManager.delete') }}
+            </button>
           </div>
         </li>
       </ul>
@@ -83,75 +93,91 @@ onMounted(() => {
 
       <form @submit.prevent="handleSave">
         <label>
-          模板名称
-          <input v-model="currentForm.name" type="text" placeholder="请输入模板名称" required />
+          {{ t('templateManager.form.nameLabel') }}
+          <input
+            v-model="currentForm.name"
+            type="text"
+            :placeholder="t('templateManager.form.namePlaceholder')"
+            required
+          />
         </label>
         <label>
-          正则表达式
+          {{ t('templateManager.form.regexLabel') }}
           <textarea
             v-model="currentForm.regex"
             rows="3"
-            placeholder="示例：\\[(?<timestamp>.*?)\\] \\[(?<level>.*?)\\] (?<message>.*)"
+            :placeholder="t('templateManager.form.regexPlaceholder')"
             required
           />
         </label>
         <div class="inline">
           <label>
-            时间字段
+            {{ t('templateManager.form.timestampLabel') }}
             <input
               v-model="currentForm.timestampField"
               type="text"
-              placeholder="timestamp"
+              :placeholder="t('templateManager.form.timestampPlaceholder')"
               required
             />
           </label>
           <label>
-            全文字段
-            <input v-model="currentForm.ftsField" type="text" placeholder="message" required />
+            {{ t('templateManager.form.searchLabel') }}
+            <input
+              v-model="currentForm.ftsField"
+              type="text"
+              :placeholder="t('templateManager.form.searchPlaceholder')"
+              required
+            />
           </label>
         </div>
 
         <div class="form-actions">
           <button type="submit" class="primary" :disabled="saving">
-            {{ saving ? '保存中...' : '保存模板' }}
+            {{ saving ? t('templateManager.form.saving') : t('templateManager.form.save') }}
           </button>
-          <button type="button" @click="handleCancel">取消</button>
+          <button type="button" @click="handleCancel">
+            {{ t('templateManager.form.cancel') }}
+          </button>
         </div>
       </form>
 
       <section class="regex-tester">
         <div class="tester-header">
-          <h3>正则测试工具</h3>
-          <button type="button" class="secondary" @click="runRegexTest">运行测试</button>
+          <h3>{{ t('templateManager.tester.title') }}</h3>
+          <button type="button" class="secondary" @click="runRegexTest">
+            {{ t('templateManager.tester.button') }}
+          </button>
         </div>
         <textarea
           v-model="currentForm.sampleInput"
           rows="6"
-          placeholder="粘贴示例日志，每行一个样本"
+          :placeholder="t('templateManager.tester.placeholder')"
         />
-
-        <div v-if="testResults.length > 0" class="test-results">
-          <h4>匹配结果 ({{ testResults.length }} 条)</h4>
-          <div
-            v-for="result in testResults"
-            :key="result.line"
-            class="test-result-item"
-            :class="{ matched: result.matched }"
+        <h4>{{ t('templateManager.tester.resultTitle', { count: testResults.length }) }}</h4>
+        <div v-if="testResults.length" class="test-results">
+          <article
+            v-for="(result, index) in testResults"
+            :key="index"
+            :class="['test-result-item', { matched: result.matched }]"
           >
-            <p><strong>日志：</strong>{{ result.line }}</p>
-            <p v-if="!result.matched">未匹配</p>
+            <p>
+              <strong>{{ t('templateManager.tester.logLabel') }}</strong>{{ result.line }}
+            </p>
+            <p v-if="!result.matched">{{ t('templateManager.tester.unmatched') }}</p>
             <div v-else class="group-grid">
-              <div v-for="(value, key) in result.groups" :key="key" class="group-item">
-                <span class="group-key">{{ key }}</span>
+              <div v-for="(value, name) in result.groups" :key="name" class="group-item">
+                <span class="group-key">{{ name }}</span>
                 <span class="group-value">{{ value }}</span>
               </div>
             </div>
-          </div>
+          </article>
         </div>
+        <p v-else class="empty-text">{{ t('templateManager.tester.noResult') }}</p>
       </section>
     </section>
   </div>
 </template>
+
 
 <style scoped>
 .template-manager {
@@ -161,14 +187,19 @@ onMounted(() => {
   margin-top: 32px;
 }
 
-.template-list {
-  background-color: #1a1a1a;
+.template-list,
+.template-form {
+  background-color: var(--surface-color);
   border-radius: 12px;
   padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--panel-border);
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.template-form {
+  padding: 24px;
 }
 
 .template-list .header {
@@ -189,30 +220,35 @@ onMounted(() => {
 .template-list li {
   padding: 12px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--panel-border);
   display: flex;
   flex-direction: column;
   gap: 6px;
+  background-color: var(--panel-bg);
+}
+
+.template-list strong {
+  display: block;
+  word-break: break-word;
+}
+
+.template-list small {
+  color: var(--muted-text);
 }
 
 .template-list li.active {
-  border-color: #4caf50;
-  background-color: rgba(76, 175, 80, 0.1);
+  border-color: var(--accent-color);
+  background-color: color-mix(in srgb, var(--accent-color) 18%, transparent);
 }
 
 .template-list .actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.template-form {
-  background-color: #1a1a1a;
-  border-radius: 12px;
-  padding: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.template-list .actions button {
+  flex: 1 1 140px;
 }
 
 form {
@@ -226,16 +262,33 @@ label {
   flex-direction: column;
   gap: 6px;
   font-size: 0.95rem;
+  color: var(--muted-text);
+}
+
+label > input,
+label > textarea {
+  color: var(--text-color);
 }
 
 input,
 textarea {
-  background-color: #121212;
-  color: #f5f5f5;
+  background-color: var(--control-bg);
+  color: var(--text-color);
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--control-border);
   padding: 10px;
   font-size: 0.95rem;
+}
+
+textarea {
+  resize: vertical;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 35%, transparent);
 }
 
 .inline {
@@ -247,33 +300,47 @@ textarea {
 .form-actions {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 button {
-  border: none;
   border-radius: 8px;
   padding: 8px 14px;
   cursor: pointer;
   font-size: 0.95rem;
+  white-space: normal;
+  line-height: 1.3;
+  text-align: center;
+  border: 1px solid var(--control-border);
+  background-color: var(--control-bg);
+  color: var(--text-color);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
 }
 
 button.primary {
-  background-color: #4caf50;
-  color: #fff;
+  background-color: var(--accent-color);
+  border-color: transparent;
+  color: var(--accent-contrast);
 }
 
 button.secondary {
-  background-color: #2196f3;
-  color: #fff;
+  background-color: transparent;
+  color: var(--accent-color);
+  border-color: var(--accent-color);
 }
 
 button.danger {
   background-color: #f44336;
+  border-color: #f44336;
   color: #fff;
 }
 
 .regex-tester {
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--panel-border);
   padding-top: 16px;
   display: flex;
   flex-direction: column;
@@ -292,20 +359,21 @@ button.danger {
   gap: 12px;
   max-height: 260px;
   overflow-y: auto;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--panel-border);
   border-radius: 8px;
   padding: 12px;
+  background-color: var(--panel-bg);
 }
 
 .test-result-item {
   padding: 8px;
   border-radius: 6px;
-  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border: 1px dashed var(--panel-border);
 }
 
 .test-result-item.matched {
   border-color: rgba(76, 175, 80, 0.6);
-  background-color: rgba(76, 175, 80, 0.08);
+  background-color: color-mix(in srgb, #4caf50 15%, transparent);
 }
 
 .group-grid {
@@ -319,14 +387,15 @@ button.danger {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: var(--control-bg);
   padding: 6px;
   border-radius: 6px;
+  border: 1px solid var(--control-border);
 }
 
 .group-key {
   font-size: 0.85rem;
-  color: #9e9e9e;
+  color: var(--muted-text);
 }
 
 .group-value {
@@ -336,8 +405,8 @@ button.danger {
 .error-box {
   padding: 10px 12px;
   border-radius: 8px;
-  background-color: rgba(244, 67, 54, 0.15);
-  border: 1px solid rgba(244, 67, 54, 0.6);
+  background-color: color-mix(in srgb, #f44336 12%, transparent);
+  border: 1px solid color-mix(in srgb, #f44336 55%, transparent);
 }
 
 @media (max-width: 1100px) {

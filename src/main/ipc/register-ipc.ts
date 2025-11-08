@@ -1,4 +1,5 @@
-import { BrowserWindow, dialog, ipcMain, shell } from 'electron';
+﻿import electron from '../electron-shim';
+import type { BrowserWindow } from 'electron';
 import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { IPC_CHANNELS } from '@shared/ipc-channels';
@@ -20,6 +21,11 @@ import { readRecentLogs } from '../logger';
 import { PreferencesStore } from '../services/preferences-store';
 import type { UserPreferences } from '@shared/models/preferences';
 import type { SystemLogEntry } from '@shared/models/system-log';
+import { setupApplicationMenu } from '../menu';
+import { resolveAppText } from '../app-texts';
+
+const electronApi = electron ?? ({} as typeof import('electron'));
+const { dialog, ipcMain, shell } = electronApi;
 
 interface RegisterIpcOptions {
   getMainWindow: () => BrowserWindow | null;
@@ -31,9 +37,16 @@ interface RegisterIpcOptions {
 }
 
 /**
- * 注册所有 Renderer -> Main 的 IPC 通道。
+ * 娉ㄥ唽鎵€鏈?Renderer -> Main 鐨?IPC 閫氶亾銆?
  */
 export function registerIpcHandlers(options: RegisterIpcOptions): void {
+  if (!ipcMain) {
+    return;
+  }
+  console.log('[Debug/IPC] registerIpcHandlers invoked');
+  console.log('[Debug/IPC] registerIpcHandlers invoked', {
+    hasWindow: Boolean(options.getMainWindow())
+  });
   const store = options.templateStore ?? new TemplateStore();
   const recentStore = options.recentItemsStore ?? new RecentItemsStore();
   const cacheManager = options.cacheManager ?? new IndexCacheManager();
@@ -41,10 +54,13 @@ export function registerIpcHandlers(options: RegisterIpcOptions): void {
   const inFlightJobs = new Map<string, { cacheInfo: CacheInfo }>();
   const knownCaches = new Map<string, CacheInfo>();
 
+  const getAppText = () => resolveAppText(preferencesStore.get().language);
+
+
   const getWindowOrThrow = (): BrowserWindow => {
     const window = options.getMainWindow();
     if (!window) {
-      throw new Error('主窗口尚未就绪');
+      throw new Error(getAppText().errors.windowNotReady);
     }
     return window;
   };
@@ -52,7 +68,7 @@ export function registerIpcHandlers(options: RegisterIpcOptions): void {
   const getCacheOrThrow = (filePath: string): CacheInfo => {
     const cache = knownCaches.get(filePath);
     if (!cache) {
-      throw new Error('该文件尚未建立索引，请先执行索引操作');
+      throw new Error(getAppText().errors.cacheNotReady);
     }
     return cache;
   };
@@ -101,7 +117,7 @@ export function registerIpcHandlers(options: RegisterIpcOptions): void {
     const dir = cacheManager.getCacheDir();
     const errorMessage = await shell.openPath(dir);
     if (errorMessage) {
-      throw new Error(`打开缓存目录失败: ${errorMessage}`);
+      throw new Error(getAppText().errors.openCacheDirFailed(errorMessage));
     }
     return { success: true, path: dir };
   });
@@ -117,18 +133,24 @@ export function registerIpcHandlers(options: RegisterIpcOptions): void {
   ipcMain.handle(
     IPC_CHANNELS.PREFERENCES_UPDATE,
     (_event, patch: Partial<UserPreferences>): UserPreferences => {
-      return preferencesStore.update(patch);
+      const updated = preferencesStore.update(patch);
+      const window = options.getMainWindow();
+      if (window) {
+        setupApplicationMenu(window, updated.language);
+      }
+      return updated;
     }
   );
 
   ipcMain.handle(IPC_CHANNELS.DIALOG_OPEN_FILE, async () => {
     const window = getWindowOrThrow();
+    const dialogText = getAppText();
     const result = await dialog.showOpenDialog(window, {
-      title: '选择日志文件',
+      title: dialogText.dialog.openLogTitle,
       properties: ['openFile'],
       filters: [
-        { name: '日志文件', extensions: ['log', 'txt'] },
-        { name: '所有文件', extensions: ['*'] }
+        { name: dialogText.dialog.logFilter, extensions: ['log', 'txt'] },
+        { name: dialogText.dialog.allFiles, extensions: ['*'] }
       ]
     });
     return result;
@@ -138,7 +160,7 @@ export function registerIpcHandlers(options: RegisterIpcOptions): void {
     const fs = await import('node:fs/promises');
     const stats = await fs.stat(filePath);
     if (!stats.isFile()) {
-      throw new Error('请选择有效的日志文件路径');
+      throw new Error(getAppText().errors.invalidLogFile);
     }
     return {
       filePath,
@@ -167,7 +189,7 @@ export function registerIpcHandlers(options: RegisterIpcOptions): void {
   ipcMain.handle(IPC_CHANNELS.INDEX_START, async (_event, payload: IndexStartRequest) => {
     const template = store.getById(payload.templateId);
     if (!template) {
-      throw new Error('指定模板不存在，请刷新后重试');
+      throw new Error('Selected template does not exist. Please refresh and try again.');
     }
     const cacheInfo = await cacheManager.resolve(payload.filePath, template);
     knownCaches.set(payload.filePath, cacheInfo);
@@ -325,3 +347,5 @@ export function registerIpcHandlers(options: RegisterIpcOptions): void {
     }
   );
 }
+
+

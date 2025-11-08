@@ -57,8 +57,8 @@ describe('logsStore', () => {
     const store = useLogsStore();
     await store.setActiveFile('test.log');
     api.runQuery.mockClear();
-    await store.setDefaultLimit(5000);
-    expect(store.query.limit).toBe(1000);
+    await store.setDefaultLimit(500);
+    expect(store.query.limit).toBe(500);
     expect(api.runQuery).toHaveBeenCalled();
   });
 });

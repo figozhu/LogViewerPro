@@ -1,13 +1,16 @@
-import Store from 'electron-store';
+import Store, { type Options as StoreOptions } from 'electron-store';
 import type { UserPreferences } from '@shared/models/preferences';
 
 interface PreferencesSchema {
   data: UserPreferences;
 }
 
+const STORE_PROJECT_NAME = 'LogViewerPro';
+
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'dark',
   defaultQueryLimit: 1000,
+  language: 'auto',
   rememberWindowState: true,
   windowState: {
     width: 1280,
@@ -24,11 +27,12 @@ export class PreferencesStore {
 
   constructor() {
     this.store = new Store<PreferencesSchema>({
+      projectName: STORE_PROJECT_NAME,
       name: 'user-preferences',
       defaults: {
         data: DEFAULT_PREFERENCES
       }
-    });
+    } as StoreOptions<PreferencesSchema>);
   }
 
   /**

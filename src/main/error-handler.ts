@@ -1,32 +1,42 @@
-import { BrowserWindow, dialog } from 'electron';
-import type { MessageBoxOptions } from 'electron';
+﻿import electron from './electron-shim';
+import type { BrowserWindow, MessageBoxOptions } from 'electron';
 import { IPC_CHANNELS } from '@shared/ipc-channels';
 import { logger } from './logger';
+
+const electronApi = electron ?? ({} as typeof import('electron'));
+const { dialog } = electronApi;
+import { resolveAppText } from './app-texts';
 
 type RendererForwarder = (channel: string, payload: unknown) => void;
 
 interface SetupOptions {
   getMainWindow: () => BrowserWindow | null;
   forward: RendererForwarder;
+  getLocale: () => string | undefined;
 }
 
 /**
- * 捕获未处理异常/Promise 拒绝并进行日志记录与 UI 提示。
- */
-export function setupGlobalErrorHandling({ getMainWindow, forward }: SetupOptions): void {
+ * 鎹曡幏鏈鐞嗗紓甯?Promise 鎷掔粷骞惰繘琛屾棩蹇楄褰曚笌 UI 鎻愮ず銆? */
+export function setupGlobalErrorHandling({
+  getMainWindow,
+  forward,
+  getLocale
+}: SetupOptions): void {
+  const getAppText = () => resolveAppText(getLocale());
+
   const reportError = (title: string, error: unknown) => {
     const message = formatErrorMessage(error);
     logger.error(`${title}: ${message}`, error);
     forward(IPC_CHANNELS.APP_ERROR, { title, message });
-    showDialog(title, message, getMainWindow());
+    showDialog(title, message, getMainWindow(), getAppText().globalErrors.dismissButton);
   };
 
   process.on('uncaughtException', (error) => {
-    reportError('未捕获异常', error);
+    reportError(getAppText().globalErrors.uncaughtExceptionTitle, error);
   });
 
   process.on('unhandledRejection', (reason) => {
-    reportError('未处理的 Promise 拒绝', reason);
+    reportError(getAppText().globalErrors.unhandledRejectionTitle, reason);
   });
 }
 
@@ -46,7 +56,16 @@ const formatErrorMessage = (error: unknown): string => {
 
 let lastDialogTimestamp = 0;
 
-const showDialog = (title: string, message: string, window: BrowserWindow | null): void => {
+const showDialog = (
+  title: string,
+  message: string,
+  window: BrowserWindow | null,
+  dismissLabel: string
+): void => {
+  if (!dialog) {
+    console.error(`[ErrorDialog] ${title}: ${message}`);
+    return;
+  }
   const now = Date.now();
   if (now - lastDialogTimestamp < 2000) {
     return;
@@ -58,7 +77,7 @@ const showDialog = (title: string, message: string, window: BrowserWindow | null
     title,
     message: title,
     detail: message,
-    buttons: ['我知道了']
+    buttons: [dismissLabel]
   };
 
   if (window && !window.isDestroyed()) {
@@ -67,3 +86,5 @@ const showDialog = (title: string, message: string, window: BrowserWindow | null
     void dialog.showMessageBox(options);
   }
 };
+
+

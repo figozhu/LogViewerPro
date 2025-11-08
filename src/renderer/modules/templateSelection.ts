@@ -1,4 +1,5 @@
 import type { LogTemplate } from '@shared/models/log-template';
+import i18n from '../i18n';
 
 export interface TemplateSelectionResult {
   templateId: string;
@@ -12,8 +13,9 @@ export interface TemplateSelectionResult {
 export async function promptTemplateSelection(
   templates: LogTemplate[]
 ): Promise<TemplateSelectionResult | null> {
+  const { t } = i18n.global;
   if (templates.length === 0) {
-    alert('当前没有可用模板，请先创建模板。');
+    alert(t('templateSelection.noTemplates'));
     return null;
   }
   if (templates.length === 1) {
@@ -52,11 +54,11 @@ export async function promptTemplateSelection(
     `;
 
     const title = document.createElement('h3');
-    title.textContent = '选择解析模板';
+    title.textContent = t('templateSelection.title');
     title.style.margin = '0';
 
     const hint = document.createElement('p');
-    hint.textContent = '请选择一个模板用于解析本次打开的日志文件：';
+    hint.textContent = t('templateSelection.hint');
     hint.style.margin = '0';
     hint.style.color = 'rgba(255,255,255,0.75)';
 
@@ -122,7 +124,10 @@ export async function promptTemplateSelection(
 
       const meta = document.createElement('div');
       meta.style.cssText = 'font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 4px;';
-      meta.textContent = `时间字段：${tpl.timestampField} · 全文字段：${tpl.ftsField}`;
+      meta.textContent = t('templateSelection.meta', {
+        timestamp: tpl.timestampField,
+        fts: tpl.ftsField
+      });
 
       const wrapper = document.createElement('div');
       wrapper.appendChild(button);
@@ -131,7 +136,7 @@ export async function promptTemplateSelection(
     });
 
     const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = '取消';
+    cancelBtn.textContent = t('templateSelection.cancel');
     cancelBtn.type = 'button';
     cancelBtn.style.cssText = `
       border: 1px solid rgba(255, 255, 255, 0.25);

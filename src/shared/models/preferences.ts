@@ -8,9 +8,12 @@ export interface WindowStatePreference {
   maximized?: boolean;
 }
 
+export type LanguagePreference = 'auto' | 'zh-CN' | 'en-US';
+
 export interface UserPreferences {
   theme: ThemePreference;
   defaultQueryLimit: number;
+  language: LanguagePreference;
   rememberWindowState: boolean;
   windowState: WindowStatePreference;
   lastUpdatedAt: number;

@@ -9,6 +9,14 @@
   --background-color: #05060b;
   --surface-color: #0f111a;
   --text-color: #f5f5fb;
+  --app-shell-bg: radial-gradient(circle at top, #1a2337 0%, #0b0d15 55%, #05060b 100%);
+  --panel-bg: rgba(255, 255, 255, 0.04);
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --muted-text: rgba(255, 255, 255, 0.7);
+  --control-border: rgba(255, 255, 255, 0.2);
+  --control-bg: rgba(15, 17, 26, 0.9);
+  --accent-color: #3f8cff;
+  --accent-contrast: #ffffff;
 }
 
 :root[data-theme='light'] {
@@ -16,6 +24,14 @@
   --background-color: #f3f6fa;
   --surface-color: #ffffff;
   --text-color: #1c1c1c;
+  --app-shell-bg: radial-gradient(circle at top, #fdfdff 0%, #eef2f9 45%, #e2e7f2 100%);
+  --panel-bg: rgba(255, 255, 255, 0.95);
+  --panel-border: rgba(22, 27, 44, 0.08);
+  --muted-text: rgba(28, 28, 28, 0.65);
+  --control-border: rgba(28, 28, 28, 0.18);
+  --control-bg: rgba(255, 255, 255, 0.96);
+  --accent-color: #2f6de0;
+  --accent-contrast: #ffffff;
 }
 
 body {

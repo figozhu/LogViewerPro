@@ -1,5 +1,1 @@
-#!/bin/sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-echo "运行 lint-staged，确保提交前通过质量检查..."
-npx lint-staged
+npm test
