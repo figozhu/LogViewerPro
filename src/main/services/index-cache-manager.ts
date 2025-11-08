@@ -149,7 +149,7 @@ export class IndexCacheManager {
         continue;
       }
     }
-    return { totalSize, entries };
+    return { totalSize, cacheDir: this.cacheDir, entries };
   }
 
   public clearAll(): void {
@@ -172,5 +172,9 @@ export class IndexCacheManager {
   private readMeta(metaPath: string): CacheMeta {
     const content = readFileSync(metaPath, 'utf-8');
     return JSON.parse(content) as CacheMeta;
+  }
+
+  public getCacheDir(): string {
+    return this.cacheDir;
   }
 }

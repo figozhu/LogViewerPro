@@ -1,10 +1,11 @@
 import { app } from 'electron';
-import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-type LogLevel = 'INFO' | 'WARN' | 'ERROR';
+export type LogLevel = 'INFO' | 'WARN' | 'ERROR';
 
 let logFilePath: string | null = null;
+let logDirPath: string | null = null;
 
 /**
  * 初始化日志存储路径，默认写入用户数据目录下的 logs/app.log。
@@ -15,6 +16,7 @@ export function initLogger(): void {
   if (!existsSync(logDir)) {
     mkdirSync(logDir, { recursive: true });
   }
+  logDirPath = logDir;
   logFilePath = join(logDir, 'app.log');
   writeLog('INFO', 'Logger initialized');
 }
@@ -57,3 +59,44 @@ export const logger = {
     writeLog('ERROR', message, meta);
   }
 };
+
+export function getLogFilePath(): string | null {
+  return logFilePath;
+}
+
+export function getLogDirPath(): string | null {
+  return logDirPath;
+}
+
+export function readRecentLogs(limit = 200): Array<{
+  timestamp: string;
+  level: LogLevel;
+  message: string;
+  raw: string;
+}> {
+  if (!logFilePath || !existsSync(logFilePath)) return [];
+  const content = readFileSync(logFilePath, 'utf-8');
+  const lines = content.trim().split(/\r?\n/).filter(Boolean);
+  const tail = lines.slice(-limit);
+  return tail
+    .map((line) => parseLogLine(line))
+    .filter(
+      (entry): entry is { timestamp: string; level: LogLevel; message: string; raw: string } =>
+        entry !== null
+    );
+}
+
+const logLinePattern = /^\[(.+?)\]\s+\[(INFO|WARN|ERROR)\]\s+(.*)$/;
+
+function parseLogLine(
+  line: string
+): { timestamp: string; level: LogLevel; message: string; raw: string } | null {
+  const match = line.match(logLinePattern);
+  if (!match) return null;
+  return {
+    timestamp: match[1],
+    level: match[2] as LogLevel,
+    message: match[3],
+    raw: line
+  };
+}

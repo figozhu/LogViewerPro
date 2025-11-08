@@ -6,6 +6,8 @@ import type {
   IndexStartResponse
 } from '@shared/models/indexing';
 import type { CacheSummary } from '@shared/models/cache';
+import type { SystemLogEntry } from '@shared/models/system-log';
+import type { UserPreferences } from '@shared/models/preferences';
 import type { LogTemplate, SaveTemplatePayload } from '@shared/models/log-template';
 import type {
   FilterOptionsRequest,
@@ -73,6 +75,10 @@ export interface LogViewerApi {
   ) => Promise<{ filePath: string; size: number; modifiedAt: number }>;
   getCacheSummary: () => Promise<CacheSummary>;
   clearCache: () => Promise<CacheSummary>;
+  openCacheDir: () => Promise<{ success: boolean; path: string }>;
+  getRecentLogs: (limit?: number) => Promise<SystemLogEntry[]>;
+  getPreferences: () => Promise<UserPreferences>;
+  updatePreferences: (payload: Partial<UserPreferences>) => Promise<UserPreferences>;
   cancelIndex: (jobId: string) => Promise<{ success: boolean }>;
   getSchema: (filePath: string) => Promise<SchemaInfo>;
   runQuery: (payload: QueryRequest) => Promise<QueryResponse>;

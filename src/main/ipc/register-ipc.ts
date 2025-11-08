@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron';
+import { BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { IPC_CHANNELS } from '@shared/ipc-channels';
@@ -16,6 +16,10 @@ import { RecentItemsStore } from '../services/recent-items-store';
 import { IndexCacheManager, type CacheInfo } from '../services/index-cache-manager';
 import { QueryBuilder } from '../services/query-builder';
 import type { QueryRequest, QueryResponse, SchemaInfo } from '@shared/models/query';
+import { readRecentLogs } from '../logger';
+import { PreferencesStore } from '../services/preferences-store';
+import type { UserPreferences } from '@shared/models/preferences';
+import type { SystemLogEntry } from '@shared/models/system-log';
 
 interface RegisterIpcOptions {
   getMainWindow: () => BrowserWindow | null;
@@ -23,6 +27,7 @@ interface RegisterIpcOptions {
   templateStore?: TemplateStore;
   recentItemsStore?: RecentItemsStore;
   cacheManager?: IndexCacheManager;
+  preferencesStore?: PreferencesStore;
 }
 
 /**
@@ -32,6 +37,7 @@ export function registerIpcHandlers(options: RegisterIpcOptions): void {
   const store = options.templateStore ?? new TemplateStore();
   const recentStore = options.recentItemsStore ?? new RecentItemsStore();
   const cacheManager = options.cacheManager ?? new IndexCacheManager();
+  const preferencesStore = options.preferencesStore ?? new PreferencesStore();
   const inFlightJobs = new Map<string, { cacheInfo: CacheInfo }>();
   const knownCaches = new Map<string, CacheInfo>();
 
@@ -90,6 +96,30 @@ export function registerIpcHandlers(options: RegisterIpcOptions): void {
     cacheManager.clearAll();
     return cacheManager.getSummary();
   });
+
+  ipcMain.handle(IPC_CHANNELS.CACHE_OPEN_DIR, async () => {
+    const dir = cacheManager.getCacheDir();
+    const errorMessage = await shell.openPath(dir);
+    if (errorMessage) {
+      throw new Error(`打开缓存目录失败: ${errorMessage}`);
+    }
+    return { success: true, path: dir };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.LOGS_GET_RECENT, (_event, limit?: number): SystemLogEntry[] => {
+    return readRecentLogs(limit ?? 200);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.PREFERENCES_GET, () => {
+    return preferencesStore.get();
+  });
+
+  ipcMain.handle(
+    IPC_CHANNELS.PREFERENCES_UPDATE,
+    (_event, patch: Partial<UserPreferences>): UserPreferences => {
+      return preferencesStore.update(patch);
+    }
+  );
 
   ipcMain.handle(IPC_CHANNELS.DIALOG_OPEN_FILE, async () => {
     const window = getWindowOrThrow();
@@ -197,10 +227,6 @@ export function registerIpcHandlers(options: RegisterIpcOptions): void {
     return { success: true };
   });
 
-  ipcMain.handle(IPC_CHANNELS.SCHEMA_GET, () => {
-    return [];
-  });
-
   ipcMain.handle(IPC_CHANNELS.SCHEMA_GET, (_event, filePath: string): SchemaInfo => {
     const cache = getCacheOrThrow(filePath);
     const db = new Database(cache.dbPath, { readonly: true });
@@ -233,6 +259,12 @@ export function registerIpcHandlers(options: RegisterIpcOptions): void {
     const cache = getCacheOrThrow(request.filePath);
     const db = new Database(cache.dbPath, { readonly: true });
     try {
+      const columnsRaw = db.prepare('PRAGMA table_info(logs);').all() as Array<{
+        name: string;
+        type: string;
+        notnull: number;
+      }>;
+      const columnNames = columnsRaw.map((col) => col.name);
       const metaRows = db.prepare('SELECT key, value FROM meta;').all() as Array<{
         key: string;
         value: string;
@@ -241,12 +273,16 @@ export function registerIpcHandlers(options: RegisterIpcOptions): void {
       metaRows.forEach((row) => {
         meta[row.key] = row.value;
       });
+      const timestampField = meta['timestamp_field'];
+      const ftsField = meta['fts_field'];
       const builder = new QueryBuilder({
         table: 'logs',
-        ftsField: meta['fts_field'],
+        allowedColumns: columnNames,
+        defaultOrderBy: timestampField,
+        ftsField,
         search: request.search,
         filters: request.filters,
-        orderBy: request.orderBy ?? meta['timestamp_field'],
+        orderBy: request.orderBy,
         orderDir: request.orderDir ?? 'DESC',
         limit: request.limit ?? 100,
         offset: request.offset ?? 0

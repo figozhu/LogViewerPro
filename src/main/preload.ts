@@ -14,6 +14,7 @@ import type {
   QueryResponse,
   SchemaInfo
 } from '@shared/models/query';
+import type { UserPreferences } from '@shared/models/preferences';
 
 const menuOpenListeners = new Set<() => void>();
 const indexProgressListeners = new Set<(payload: IndexProgressEvent) => void>();
@@ -136,6 +137,18 @@ contextBridge.exposeInMainWorld('logViewerApi', {
   },
   clearCache: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.CACHE_CLEAR_ALL);
+  },
+  openCacheDir: () => {
+    return ipcRenderer.invoke(IPC_CHANNELS.CACHE_OPEN_DIR);
+  },
+  getRecentLogs: (limit?: number) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.LOGS_GET_RECENT, limit);
+  },
+  getPreferences: () => {
+    return ipcRenderer.invoke(IPC_CHANNELS.PREFERENCES_GET);
+  },
+  updatePreferences: (payload: Partial<UserPreferences>) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.PREFERENCES_UPDATE, payload);
   },
 
   /**

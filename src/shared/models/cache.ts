@@ -12,5 +12,6 @@ export interface CacheEntrySummary {
 
 export interface CacheSummary {
   totalSize: number;
+  cacheDir: string;
   entries: CacheEntrySummary[];
 }

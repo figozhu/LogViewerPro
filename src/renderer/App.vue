@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import TemplateManager from './components/templates/TemplateManager.vue';
 import LogViewer from './components/logs/LogViewer.vue';
+import SystemLogPanel from './components/system/SystemLogPanel.vue';
+import UserPreferencesPanel from './components/system/UserPreferencesPanel.vue';
 import type { IndexCompleteEvent, IndexProgressEvent } from '@shared/models/indexing';
 import { useTemplateStore } from './stores/templateStore';
 import { useLogsStore } from './stores/logsStore';
 import { promptTemplateSelection, type TemplateSelectionResult } from './modules/templateSelection';
 import type { CacheSummary } from '@shared/models/cache';
+import { usePreferenceStore } from './stores/preferenceStore';
 
 const handshakeTime = ref('尚未连接');
 const menuInvokeCount = ref(0);
@@ -21,6 +24,7 @@ const errorHistory = ref<Array<{ title: string; message: string; timestamp: stri
 const isDragOver = ref(false);
 const dragError = ref('');
 const cacheSummary = ref<CacheSummary | null>(null);
+const cacheInfoLoading = ref(false);
 const clearingCache = ref(false);
 const isCancelling = ref(false);
 const isIndexing = computed(() => currentJobId.value !== null);
@@ -34,8 +38,82 @@ let disposeIndexErrorListener: (() => void) | null = null;
 
 const templateStore = useTemplateStore();
 const logsStore = useLogsStore();
+const preferenceStore = usePreferenceStore();
 const { templates, recentItems } = storeToRefs(templateStore);
 const templateCount = computed(() => templates.value.length);
+const resolvedPreferences = computed(() => preferenceStore.resolved);
+
+const syncQueryLimitFromPreference = () => {
+  void logsStore.setDefaultLimit(resolvedPreferences.value.defaultQueryLimit);
+};
+
+const applyThemePreference = () => {
+  const preference = resolvedPreferences.value.theme;
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const effectiveTheme = preference === 'system' ? (prefersDark ? 'dark' : 'light') : preference;
+  document.documentElement.dataset.theme = effectiveTheme;
+};
+
+const themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+const handleSystemThemeChange = () => {
+  if (resolvedPreferences.value.theme === 'system') {
+    applyThemePreference();
+  }
+};
+
+watch(
+  () => resolvedPreferences.value.defaultQueryLimit,
+  (newLimit, oldLimit) => {
+    if (newLimit !== oldLimit) {
+      syncQueryLimitFromPreference();
+    }
+  }
+);
+
+watch(
+  () => resolvedPreferences.value.theme,
+  (newTheme, oldTheme) => {
+    if (newTheme !== oldTheme) {
+      applyThemePreference();
+    }
+  }
+);
+
+/**
+ * 以更新时间倒序展示缓存条目列表，供 UI 快速浏览最近的索引产物。
+ */
+const cacheEntriesView = computed(() => {
+  if (!cacheSummary.value) return [];
+  return [...cacheSummary.value.entries]
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 5)
+    .map((entry) => ({
+      ...entry,
+      displaySize: formatBytes(entry.size),
+      displayUpdatedAt: formatDateTime(entry.updatedAt),
+      statsLabel: formatCacheStats(entry.insertedRows, entry.skippedRows)
+    }));
+});
+
+const cacheDirPath = computed(() => cacheSummary.value?.cacheDir ?? '缓存目录尚未生成');
+
+/**
+ * 最近打开列表的展示模型，附带时间描述与模板可用性标记。
+ */
+const recentItemsView = computed(() => {
+  const templateMap = new Map(templates.value.map((tpl) => [tpl.id, tpl]));
+  return recentItems.value.map((item) => {
+    const template = templateMap.get(item.templateId);
+    const displayName = template?.name ?? item.templateName ?? '未命名模板';
+    return {
+      ...item,
+      displayName,
+      openedAtAbsolute: item.openedAt ? formatDateTime(item.openedAt) : '时间未知',
+      openedAtRelative: item.openedAt ? formatRelativeTime(item.openedAt) : '时间未知',
+      missingTemplate: !template
+    };
+  });
+});
 
 const appendErrorHistory = (title: string, message: string) => {
   errorHistory.value.unshift({ title, message, timestamp: new Date().toLocaleString() });
@@ -103,6 +181,7 @@ const handleExternalFileOpen = async (filePath: string, preferredTemplateId?: st
       progressValue.value = 100;
       indexingMessage.value = '命中缓存，已完成加载';
       void logsStore.setActiveFile(filePath);
+      void refreshCacheSummary();
     } else {
       currentJobId.value = jobId;
       indexingMessage.value = `索引任务 ${jobId} 已启动`;
@@ -146,6 +225,7 @@ const handleIndexComplete = (payload: IndexCompleteEvent) => {
   if (!payload.cancelled && lastOpenedFile.value && lastOpenedFile.value !== '尚未选择') {
     void logsStore.setActiveFile(lastOpenedFile.value);
   }
+  void refreshCacheSummary();
 };
 
 const handleAppError = (payload: { title: string; message: string }) => {
@@ -157,8 +237,16 @@ const reopenRecent = async (item: { filePath: string; templateId: string }) => {
   await handleExternalFileOpen(item.filePath, item.templateId);
 };
 
+/**
+ * 主动拉取缓存汇总信息，配合索引流程保持 UI 与磁盘状态一致。
+ */
 const refreshCacheSummary = async () => {
-  cacheSummary.value = await window.logViewerApi.getCacheSummary();
+  cacheInfoLoading.value = true;
+  try {
+    cacheSummary.value = await window.logViewerApi.getCacheSummary();
+  } finally {
+    cacheInfoLoading.value = false;
+  }
 };
 
 const clearCache = async () => {
@@ -167,6 +255,14 @@ const clearCache = async () => {
     cacheSummary.value = await window.logViewerApi.clearCache();
   } finally {
     clearingCache.value = false;
+  }
+};
+
+const openCacheDir = async () => {
+  try {
+    await window.logViewerApi.openCacheDir();
+  } catch (error) {
+    reportError('打开缓存目录失败', error);
   }
 };
 
@@ -199,6 +295,54 @@ const onDrop = (event: DragEvent) => {
   void handleExternalFileOpen(filePath);
 };
 
+/**
+ * 根据缓存统计生成可读文本，方便在列表中展示写入/跳过数量。
+ */
+const formatCacheStats = (inserted?: number, skipped?: number): string => {
+  const insertedText = inserted !== undefined ? inserted : '—';
+  const skippedText = skipped !== undefined ? skipped : '—';
+  return `写入 ${insertedText} · 跳过 ${skippedText}`;
+};
+
+/**
+ * 将字节数转换为可读字符串（KB/MB/GB），用于缓存占用展示。
+ */
+const formatBytes = (size: number): string => {
+  if (!Number.isFinite(size) || size <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let index = 0;
+  let value = size;
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+  return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+};
+
+/**
+ * 将时间戳格式化为本地时间字符串，统一 UI 展示格式。
+ */
+const formatDateTime = (timestamp: number): string => {
+  if (!timestamp) return '时间未知';
+  return new Date(timestamp).toLocaleString();
+};
+
+/**
+ * 计算相对时间（几分钟前/几小时前），用于最近列表提示。
+ */
+const formatRelativeTime = (timestamp: number): string => {
+  if (!timestamp) return '时间未知';
+  const diff = Date.now() - timestamp;
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  if (diff < minute) return '刚刚';
+  if (diff < hour) return `${Math.floor(diff / minute)} 分钟前`;
+  if (diff < day) return `${Math.floor(diff / hour)} 小时前`;
+  if (diff < day * 7) return `${Math.floor(diff / day)} 天前`;
+  return formatDateTime(timestamp);
+};
+
 const cancelIndexing = async () => {
   if (!currentJobId.value) {
     return;
@@ -217,6 +361,16 @@ onMounted(() => {
   void pingMainProcess();
   void templateStore.fetchAll();
   void templateStore.fetchRecent();
+  themeMediaQuery.addEventListener('change', handleSystemThemeChange);
+  void preferenceStore
+    .fetchPreferences()
+    .then(() => {
+      syncQueryLimitFromPreference();
+      applyThemePreference();
+    })
+    .catch(() => {
+      applyThemePreference();
+    });
   void refreshCacheSummary();
   disposeMenuListener = window.logViewerApi.onMenuOpenFile(() => {
     void handleMenuOpen();
@@ -238,6 +392,7 @@ onBeforeUnmount(() => {
   disposeCompleteListener?.();
   disposeAppErrorListener?.();
   disposeIndexErrorListener?.();
+  themeMediaQuery.removeEventListener('change', handleSystemThemeChange);
   window.removeEventListener('dragover', onDragOver);
   window.removeEventListener('dragleave', onDragLeave);
   window.removeEventListener('drop', onDrop);
@@ -259,14 +414,14 @@ onBeforeUnmount(() => {
 
     <section class="status-grid">
       <section class="status-card">
-        <h2>运行状态</h2>
+        <h2>系统状态</h2>
         <p>模板数量：{{ templateCount }} 个</p>
-        <p>最新选择的日志文件：{{ lastOpenedFile }}</p>
+        <p>最近文件：{{ lastOpenedFile }}</p>
         <p>
-          索引状态：{{ indexingMessage }} ｜ 阶段：{{ progressPhase }} ｜ 进度：{{ progressValue }}%
+          索引状态：{{ indexingMessage }} · 阶段：{{ progressPhase }} · 进度：{{ progressValue }}%
         </p>
-        <p>今日菜单打开：{{ menuInvokeCount }} 次</p>
-        <p>最近错误：{{ latestAppError }}</p>
+        <p>菜单触发：{{ menuInvokeCount }} 次</p>
+        <p>最新错误：{{ latestAppError }}</p>
         <div v-if="errorHistory.length > 0" class="error-board">
           <h3>错误记录</h3>
           <ul>
@@ -279,14 +434,42 @@ onBeforeUnmount(() => {
       </section>
 
       <section class="status-card">
-        <h2>索引/缓存</h2>
-        <div v-if="cacheSummary" class="cache-box">
-          <p>缓存大小：{{ (cacheSummary.totalSize / (1024 * 1024)).toFixed(2) }} MB</p>
-          <button type="button" :disabled="clearingCache" @click="clearCache">
-            {{ clearingCache ? '清理中...' : '清除所有索引缓存' }}
-          </button>
-          <small v-if="cacheSummary.entries.length === 0">暂无缓存</small>
+        <div class="card-title">
+          <h2>索引与缓存</h2>
+          <span class="status-chip" :class="{ active: isIndexing }">
+            {{ isIndexing ? '索引中' : '已空闲' }}
+          </span>
         </div>
+        <div class="cache-box">
+          <div>
+            <p>缓存占用：{{ cacheSummary ? formatBytes(cacheSummary.totalSize) : '尚未统计' }}</p>
+            <small>缓存条目：{{ cacheSummary ? cacheSummary.entries.length : 0 }}</small>
+            <small class="cache-path">目录：{{ cacheDirPath }}</small>
+          </div>
+          <div class="cache-actions">
+            <button type="button" :disabled="cacheInfoLoading" @click="refreshCacheSummary">
+              {{ cacheInfoLoading ? '刷新中...' : '刷新' }}
+            </button>
+            <button type="button" @click="openCacheDir">打开目录</button>
+            <button type="button" class="danger" :disabled="clearingCache" @click="clearCache">
+              {{ clearingCache ? '清理中...' : '清除缓存' }}
+            </button>
+          </div>
+        </div>
+        <ul v-if="cacheEntriesView.length" class="cache-entry-list">
+          <li v-for="entry in cacheEntriesView" :key="entry.cacheKey">
+            <div class="cache-entry-meta">
+              <strong>{{ entry.templateName || '未命名模板' }}</strong>
+              <span>{{ entry.displaySize }} · {{ entry.displayUpdatedAt }}</span>
+              <small>{{ entry.filePath }}</small>
+            </div>
+            <div class="cache-entry-stats">
+              <span>{{ entry.statsLabel }}</span>
+            </div>
+          </li>
+        </ul>
+        <p v-else class="empty-text">暂无缓存，首个索引完成后会自动生成。</p>
+
         <div v-if="isIndexing" class="progress-box">
           <div class="progress-header">
             <span>索引进度：{{ progressPhase }} ({{ progressValue }}%)</span>
@@ -306,7 +489,7 @@ onBeforeUnmount(() => {
             }}
           </p>
           <div v-if="lastIndexStats.unmatched?.length" class="unmatched-box">
-            <p>未匹配样本（最多 5 条）：</p>
+            <p>未匹配示例（最多 5 行）</p>
             <ul>
               <li v-for="(line, index) in lastIndexStats.unmatched" :key="index">{{ line }}</li>
             </ul>
@@ -315,15 +498,23 @@ onBeforeUnmount(() => {
       </section>
 
       <section class="status-card">
-        <h2>最近打开</h2>
-        <p v-if="recentItems.length === 0">暂无记录</p>
-        <ul v-else>
-          <li v-for="item in recentItems" :key="item.filePath">
-            <div>
-              <strong>{{ item.templateName || '未命名模板' }}</strong>
+        <h2>最近记录</h2>
+        <p v-if="recentItemsView.length === 0" class="empty-text">暂无最近打开记录。</p>
+        <ul v-else class="recent-list">
+          <li v-for="item in recentItemsView" :key="item.filePath" class="recent-item">
+            <div class="recent-meta">
+              <div class="recent-title">
+                <strong>{{ item.displayName }}</strong>
+                <span v-if="item.missingTemplate" class="badge">模板已删除</span>
+              </div>
+              <span class="recent-time"
+                >上次打开：{{ item.openedAtAbsolute }}（{{ item.openedAtRelative }}）</span
+              >
               <small>{{ item.filePath }}</small>
             </div>
-            <button type="button" @click="reopenRecent(item)">重新打开</button>
+            <div class="recent-actions">
+              <button type="button" @click="reopenRecent(item)">重新打开</button>
+            </div>
           </li>
         </ul>
       </section>
@@ -338,6 +529,9 @@ onBeforeUnmount(() => {
       </section>
     </div>
 
+    <UserPreferencesPanel />
+    <SystemLogPanel />
+
     <div v-if="isDragOver" class="drag-overlay">
       <p>释放文件以开始解析</p>
     </div>
@@ -345,97 +539,169 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.container {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  padding: 48px;
-  color: #f8f8f2;
-}
-
-.hero {
-  background: linear-gradient(135deg, #2c5364, #203a43, #0f2027);
-  border-radius: 16px;
+.app-shell {
+  min-height: 100vh;
   padding: 32px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  background: radial-gradient(circle at top, #1a2337 0%, #0b0d15 55%, #05060b 100%);
+  color: #f7f7fb;
 }
 
-.hero h1 {
-  margin: 0 0 12px;
-  font-size: 2.5rem;
+.app-shell.drag-active {
+  border: 2px dashed rgba(111, 177, 255, 0.8);
 }
 
-.hero p {
-  margin: 0 0 20px;
-  line-height: 1.6;
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
 }
 
-.hero button {
-  width: 160px;
-  height: 40px;
+.app-header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.app-header p {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.header-actions {
+  text-align: right;
+}
+
+.header-actions button {
   border: none;
   border-radius: 8px;
-  background-color: #4caf50;
+  padding: 8px 16px;
+  background-color: #3f8cff;
   color: #fff;
-  font-size: 1rem;
   cursor: pointer;
+  margin-bottom: 4px;
 }
 
-.status {
-  padding: 24px;
-  background-color: #1e1e1e;
-  border-radius: 12px;
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.status-card {
+  background-color: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px;
+  min-height: 220px;
 }
 
-.status h2 {
+.status-card h2 {
+  margin: 0 0 12px;
+}
+
+.card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 8px;
 }
 
-.drag-error {
-  margin-top: 12px;
-  color: #ff8a80;
+.status-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.status-chip.active {
+  background-color: rgba(79, 195, 247, 0.3);
 }
 
 .cache-box {
-  margin-top: 16px;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background-color: rgba(255, 255, 255, 0.03);
   display: flex;
-  align-items: center;
+  justify-content: space-between;
   gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(255, 255, 255, 0.02);
 }
 
-.cache-box button {
-  border: none;
-  border-radius: 6px;
-  padding: 6px 12px;
-  background-color: #ff7043;
-  color: #fff;
-  cursor: pointer;
+.cache-box p {
+  margin: 0;
 }
 
 .cache-box small {
-  color: #9e9e9e;
+  color: rgba(255, 255, 255, 0.6);
 }
 
-.progress-box {
-  margin-top: 16px;
-  padding: 12px;
+.cache-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.cache-actions button {
+  border: none;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background-color: rgba(0, 0, 0, 0.2);
+  padding: 6px 12px;
+  cursor: pointer;
+  background-color: #455a64;
+  color: #fff;
+}
+
+.cache-actions .danger {
+  background-color: #ef5350;
+}
+
+.cache-entry-list,
+.recent-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+}
+
+.cache-entry-list li,
+.recent-item {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(0, 0, 0, 0.24);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cache-entry-meta small,
+.recent-meta small {
+  display: block;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 4px;
+  word-break: break-all;
+}
+
+.cache-entry-stats span {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.progress-box,
+.stats-box {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(0, 0, 0, 0.2);
 }
 
 .progress-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 8px;
 }
 
 .progress-header button {
@@ -452,15 +718,8 @@ progress {
   height: 12px;
 }
 
-.stats-box {
-  margin-top: 16px;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background-color: rgba(255, 255, 255, 0.02);
-}
-
-.unmatched-box ul {
+.unmatched-box ul,
+.error-board ul {
   margin: 8px 0 0;
   padding-left: 20px;
 }
@@ -468,62 +727,62 @@ progress {
 .error-board {
   margin-top: 12px;
   padding: 12px;
-  border: 1px solid rgba(255, 76, 76, 0.4);
-  border-radius: 8px;
-  background-color: rgba(255, 76, 76, 0.1);
+  border-radius: 12px;
+  background-color: rgba(255, 82, 82, 0.15);
+  border: 1px solid rgba(255, 82, 82, 0.3);
 }
 
-.error-board ul {
-  margin: 0;
-  padding-left: 20px;
-  max-height: 160px;
-  overflow-y: auto;
+.drag-error,
+.empty-text {
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 12px;
 }
 
-.recent-section {
-  padding: 16px 24px 32px;
-  background-color: #111;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.recent-meta {
+  flex: 1;
 }
 
-.recent-section ul {
-  list-style: none;
-  padding: 0;
-  margin: 12px 0 0;
+.recent-title {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.recent-section li {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 8px;
 }
 
-.recent-section small {
+.recent-time {
   display: block;
-  color: #9e9e9e;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
   margin-top: 4px;
-  max-width: 520px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.recent-section button {
+.recent-actions button {
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 6px 12px;
-  background-color: #2196f3;
+  background-color: #3f8cff;
   color: #fff;
   cursor: pointer;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background-color: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 20px;
+}
+
+.panel {
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px;
 }
 
 .drag-overlay {
@@ -537,5 +796,11 @@ progress {
   color: #ffffff;
   z-index: 1000;
   pointer-events: none;
+}
+
+@media (max-width: 960px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

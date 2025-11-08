@@ -9,6 +9,7 @@ import { setupGlobalErrorHandling } from './error-handler';
 import { TemplateStore } from './services/template-store';
 import { RecentItemsStore } from './services/recent-items-store';
 import { IndexCacheManager } from './services/index-cache-manager';
+import { PreferencesStore } from './services/preferences-store';
 
 let mainWindow: BrowserWindow | null = null;
 let ipcRegistered = false;
@@ -21,15 +22,21 @@ const forwardToRenderer = (channel: string, payload: unknown) => {
 const workerManager = new WorkerManager(forwardToRenderer);
 const templateStore = new TemplateStore();
 const recentItemsStore = new RecentItemsStore();
+const preferencesStore = new PreferencesStore();
 let indexCacheManager: IndexCacheManager;
 
 /**
  * 创建主窗口函数，负责加载渲染进程页面并设置基础行为。
  */
 async function createMainWindow(): Promise<BrowserWindow> {
-  mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+  const preferences = preferencesStore.get();
+  const storedState = preferences.windowState ?? { width: 1280, height: 800 };
+  const rememberState = preferences.rememberWindowState;
+  const browserOptions: Electron.BrowserWindowConstructorOptions = {
+    width: storedState.width ?? 1280,
+    height: storedState.height ?? 800,
+    x: rememberState ? storedState.x : undefined,
+    y: rememberState ? storedState.y : undefined,
     minWidth: 960,
     minHeight: 600,
     show: false,
@@ -38,7 +45,25 @@ async function createMainWindow(): Promise<BrowserWindow> {
       nodeIntegration: false,
       contextIsolation: true
     }
-  });
+  };
+
+  mainWindow = new BrowserWindow(browserOptions);
+
+  const persistWindowState = () => {
+    if (!preferencesStore.get().rememberWindowState || !mainWindow || mainWindow.isDestroyed()) {
+      return;
+    }
+    const bounds = mainWindow.getBounds();
+    preferencesStore.update({
+      windowState: {
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y,
+        maximized: mainWindow.isMaximized()
+      }
+    });
+  };
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show();
@@ -47,6 +72,16 @@ async function createMainWindow(): Promise<BrowserWindow> {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  mainWindow.on('resize', persistWindowState);
+  mainWindow.on('move', persistWindowState);
+  mainWindow.on('close', persistWindowState);
+  mainWindow.on('maximize', persistWindowState);
+  mainWindow.on('unmaximize', persistWindowState);
+
+  if (rememberState && storedState.maximized) {
+    mainWindow.maximize();
+  }
 
   const url = process.env['VITE_DEV_SERVER_URL'];
   if (url) {
@@ -81,7 +116,8 @@ app.whenReady().then(async () => {
       workerManager,
       templateStore,
       recentItemsStore,
-      cacheManager: indexCacheManager
+      cacheManager: indexCacheManager,
+      preferencesStore
     });
     ipcRegistered = true;
   }

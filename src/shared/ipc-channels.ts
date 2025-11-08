@@ -20,6 +20,10 @@ export const IPC_CHANNELS = {
   FILE_VALIDATE: 'file:validate',
   CACHE_INFO_GET: 'cache:info',
   CACHE_CLEAR_ALL: 'cache:clearAll',
+  CACHE_OPEN_DIR: 'cache:openDir',
+  LOGS_GET_RECENT: 'logs:getRecent',
+  PREFERENCES_GET: 'preferences:get',
+  PREFERENCES_UPDATE: 'preferences:update',
   SCHEMA_GET: 'schema:get',
   QUERY_RUN: 'query:run',
   FILTERS_GET_OPTIONS: 'filters:getOptions'
