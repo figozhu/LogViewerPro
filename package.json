@@ -15,6 +15,7 @@
     "lint": "eslint . --ext .ts,.vue",
     "format": "prettier --write \"src/**/*.{ts,vue,css}\"",
     "prepare": "husky install",
+    "postinstall": "patch-package",
     "dist": "npm run build && electron-builder -c electron-builder.config.cjs",
     "test": "vitest run"
   },
@@ -54,6 +55,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.2.6",
     "npm-run-all": "^4.1.5",
+    "patch-package": "^8.0.1",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.3",

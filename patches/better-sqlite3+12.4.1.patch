@@ -1,0 +1,44 @@
+diff --git a/node_modules/better-sqlite3/src/better_sqlite3.cpp b/node_modules/better-sqlite3/src/better_sqlite3.cpp
+index 024bb4f..4ab8ec0 100644
+--- a/node_modules/better-sqlite3/src/better_sqlite3.cpp
++++ b/node_modules/better-sqlite3/src/better_sqlite3.cpp
+@@ -46,24 +46,26 @@ class Backup;
+ #include "objects/statement-iterator.cpp"
+ 
+ NODE_MODULE_INIT(/* exports, context */) {
+-	v8::Isolate* isolate = context->GetIsolate();
+-	v8::HandleScope scope(isolate);
++	// Context::GetIsolate() was removed in newer V8 builds, so fall back to the thread-local isolate.
++	// There is no better hook exposed by Electron 39 headers yet.
++	v8::Isolate* addon_isolate = v8::Isolate::GetCurrent();
++	v8::HandleScope scope(addon_isolate);
+ 	Addon::ConfigureURI();
+ 
+ 	// Initialize addon instance.
+-	Addon* addon = new Addon(isolate);
+-	v8::Local<v8::External> data = v8::External::New(isolate, addon);
+-	node::AddEnvironmentCleanupHook(isolate, Addon::Cleanup, addon);
++	Addon* addon = new Addon(addon_isolate);
++	v8::Local<v8::External> data = v8::External::New(addon_isolate, addon);
++	node::AddEnvironmentCleanupHook(addon_isolate, Addon::Cleanup, addon);
+ 
+ 	// Create and export native-backed classes and functions.
+-	exports->Set(context, InternalizedFromLatin1(isolate, "Database"), Database::Init(isolate, data)).FromJust();
+-	exports->Set(context, InternalizedFromLatin1(isolate, "Statement"), Statement::Init(isolate, data)).FromJust();
+-	exports->Set(context, InternalizedFromLatin1(isolate, "StatementIterator"), StatementIterator::Init(isolate, data)).FromJust();
+-	exports->Set(context, InternalizedFromLatin1(isolate, "Backup"), Backup::Init(isolate, data)).FromJust();
+-	exports->Set(context, InternalizedFromLatin1(isolate, "setErrorConstructor"), v8::FunctionTemplate::New(isolate, Addon::JS_setErrorConstructor, data)->GetFunction(context).ToLocalChecked()).FromJust();
++	exports->Set(context, InternalizedFromLatin1(addon_isolate, "Database"), Database::Init(addon_isolate, data)).FromJust();
++	exports->Set(context, InternalizedFromLatin1(addon_isolate, "Statement"), Statement::Init(addon_isolate, data)).FromJust();
++	exports->Set(context, InternalizedFromLatin1(addon_isolate, "StatementIterator"), StatementIterator::Init(addon_isolate, data)).FromJust();
++	exports->Set(context, InternalizedFromLatin1(addon_isolate, "Backup"), Backup::Init(addon_isolate, data)).FromJust();
++	exports->Set(context, InternalizedFromLatin1(addon_isolate, "setErrorConstructor"), v8::FunctionTemplate::New(addon_isolate, Addon::JS_setErrorConstructor, data)->GetFunction(context).ToLocalChecked()).FromJust();
+ 
+ 	// Store addon instance data.
+-	addon->Statement.Reset(isolate, exports->Get(context, InternalizedFromLatin1(isolate, "Statement")).ToLocalChecked().As<v8::Function>());
+-	addon->StatementIterator.Reset(isolate, exports->Get(context, InternalizedFromLatin1(isolate, "StatementIterator")).ToLocalChecked().As<v8::Function>());
+-	addon->Backup.Reset(isolate, exports->Get(context, InternalizedFromLatin1(isolate, "Backup")).ToLocalChecked().As<v8::Function>());
++	addon->Statement.Reset(addon_isolate, exports->Get(context, InternalizedFromLatin1(addon_isolate, "Statement")).ToLocalChecked().As<v8::Function>());
++	addon->StatementIterator.Reset(addon_isolate, exports->Get(context, InternalizedFromLatin1(addon_isolate, "StatementIterator")).ToLocalChecked().As<v8::Function>());
++	addon->Backup.Reset(addon_isolate, exports->Get(context, InternalizedFromLatin1(addon_isolate, "Backup")).ToLocalChecked().As<v8::Function>());
+ }
