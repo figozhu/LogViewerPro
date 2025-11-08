@@ -5,6 +5,7 @@
 export const IPC_CHANNELS = {
   READY: 'app:ready',
   MENU_OPEN_FILE: 'menu:openFileCommand',
+  MENU_OPEN_HELP: 'menu:openHelpCommand',
   APP_ERROR: 'app:error',
   TEMPLATES_GET_ALL: 'templates:getAll',
   TEMPLATES_SAVE: 'templates:save',

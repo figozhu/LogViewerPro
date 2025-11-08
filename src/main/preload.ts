@@ -17,6 +17,7 @@ import type {
 import type { UserPreferences } from '@shared/models/preferences';
 
 const menuOpenListeners = new Set<() => void>();
+const menuHelpListeners = new Set<() => void>();
 const indexProgressListeners = new Set<(payload: IndexProgressEvent) => void>();
 const indexCompleteListeners = new Set<(payload: IndexCompleteEvent) => void>();
 const appErrorListeners = new Set<(payload: { title: string; message: string }) => void>();
@@ -38,6 +39,16 @@ ipcRenderer.on(IPC_CHANNELS.MENU_OPEN_FILE, () => {
       listener();
     } catch (error) {
       console.error('[Preload] 菜单回调执行失败', error);
+    }
+  }
+});
+
+ipcRenderer.on(IPC_CHANNELS.MENU_OPEN_HELP, () => {
+  for (const listener of menuHelpListeners) {
+    try {
+      listener();
+    } catch (error) {
+      console.error('[Preload] 帮助菜单回调执行失败', error);
     }
   }
 });
@@ -75,6 +86,13 @@ contextBridge.exposeInMainWorld('logViewerApi', {
   onMenuOpenFile: (handler: () => void): (() => void) => {
     menuOpenListeners.add(handler);
     return () => menuOpenListeners.delete(handler);
+  },
+  /**
+   * 允许渲染层监听“使用帮助”菜单命令，并随时取消订阅
+   */
+  onMenuOpenHelp: (handler: () => void): (() => void) => {
+    menuHelpListeners.add(handler);
+    return () => menuHelpListeners.delete(handler);
   },
 
   /**

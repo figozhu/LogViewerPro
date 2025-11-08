@@ -27,6 +27,10 @@ export interface LogViewerApi {
    * 监听主菜单触发的“打开日志”命令，返回取消订阅的方法。
    */
   onMenuOpenFile: (handler: () => void) => () => void;
+  /**
+   * 监听主菜单触发的“使用帮助”命令。
+   */
+  onMenuOpenHelp: (handler: () => void) => () => void;
 
   /**
    * 获取所有已保存模板。

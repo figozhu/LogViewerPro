@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import TemplateManager from './components/templates/TemplateManager.vue';
 import LogViewer from './components/logs/LogViewer.vue';
+import HelpCenter from './components/help/HelpCenter.vue';
 import SystemLogPanel from './components/system/SystemLogPanel.vue';
 import UserPreferencesPanel from './components/system/UserPreferencesPanel.vue';
 import type { IndexCompleteEvent, IndexProgressEvent } from '@shared/models/indexing';
@@ -30,7 +31,7 @@ const isCancelling = ref(false);
 const isIndexing = computed(() => currentJobId.value !== null);
 const lastIndexStats = ref<{ inserted?: number; skipped?: number; unmatched?: string[] }>({});
 
-type AppTab = 'logs' | 'templates' | 'status' | 'preferences' | 'systemLog';
+type AppTab = 'logs' | 'templates' | 'status' | 'preferences' | 'systemLog' | 'help';
 
 /**
  * 顶部标签集合，便于后续迭代时统一配置元数据
@@ -40,11 +41,13 @@ const tabs: Array<{ id: AppTab; label: string; description: string }> = [
   { id: 'templates', label: '模板管理', description: '维护解析模板与快速测试正则' },
   { id: 'status', label: '运行状态', description: '查看缓存、任务与错误看板' },
   { id: 'systemLog', label: '系统日志', description: '查看主进程与服务日志' },
-  { id: 'preferences', label: '个性化设置', description: '切换主题、调节默认参数' }
+  { id: 'preferences', label: '个性化设置', description: '切换主题、调节默认参数' },
+  { id: 'help', label: '使用帮助', description: '快速了解操作方式与支持渠道' }
 ];
 const activeTab = ref<AppTab>('logs');
 
 let disposeMenuListener: (() => void) | null = null;
+let disposeHelpMenuListener: (() => void) | null = null;
 let disposeProgressListener: (() => void) | null = null;
 let disposeCompleteListener: (() => void) | null = null;
 let disposeAppErrorListener: (() => void) | null = null;
@@ -406,6 +409,9 @@ onMounted(() => {
   disposeMenuListener = window.logViewerApi.onMenuOpenFile(() => {
     void handleMenuOpen();
   });
+  disposeHelpMenuListener = window.logViewerApi.onMenuOpenHelp(() => {
+    activeTab.value = 'help';
+  });
   disposeProgressListener = window.logViewerApi.onIndexProgress(handleIndexProgress);
   disposeCompleteListener = window.logViewerApi.onIndexComplete(handleIndexComplete);
   disposeAppErrorListener = window.logViewerApi.onAppError(handleAppError);
@@ -419,6 +425,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   disposeMenuListener?.();
+  disposeHelpMenuListener?.();
   disposeProgressListener?.();
   disposeCompleteListener?.();
   disposeAppErrorListener?.();
@@ -594,6 +601,10 @@ onBeforeUnmount(() => {
       <SystemLogPanel />
     </section>
 
+    <section v-else-if="activeTab === 'help'" class="panel help-panel">
+      <HelpCenter />
+    </section>
+
     <section v-else class="panel preferences-panel">
       <UserPreferencesPanel />
     </section>
@@ -694,6 +705,12 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 20px;
+}
+
+.help-panel {
+  padding: 0;
+  border: none;
+  background: transparent;
 }
 
 .panel-header {

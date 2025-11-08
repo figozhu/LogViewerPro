@@ -1,17 +1,17 @@
 import { app, BrowserWindow, Menu, MenuItemConstructorOptions, shell } from 'electron';
-import { join } from 'node:path';
 import { IPC_CHANNELS } from '@shared/ipc-channels';
 
 /**
- * 构建并安装应用主菜单，适配不同平台的交互习惯。
+ * 构建并安装应用主菜单，适配不同平台的交互习惯
  * @param mainWindow 需要响应菜单命令的主窗口实例
  */
 export function setupApplicationMenu(mainWindow: BrowserWindow): void {
   const isMac = process.platform === 'darwin';
   const template: MenuItemConstructorOptions[] = [];
+
   const fileMenuSubmenu: MenuItemConstructorOptions[] = [
     {
-      label: '打开日志文件…',
+      label: '打开日志文件',
       accelerator: 'CmdOrCtrl+O',
       click: () => {
         mainWindow.webContents.send(IPC_CHANNELS.MENU_OPEN_FILE);
@@ -90,16 +90,16 @@ export function setupApplicationMenu(mainWindow: BrowserWindow): void {
       label: '帮助',
       submenu: [
         {
+          label: '使用帮助',
+          click: () => {
+            mainWindow.webContents.send(IPC_CHANNELS.MENU_OPEN_HELP);
+          }
+        },
+        { type: 'separator' },
+        {
           label: '打开项目主页',
           click: () => {
             void shell.openExternal('https://github.com/figozhu/LogViewerPro');
-          }
-        },
-        {
-          label: '查看需求文档',
-          click: () => {
-            const docPath = join(app.getAppPath(), 'doc', '需求与实现方案.md');
-            void shell.openPath(docPath);
           }
         }
       ]
