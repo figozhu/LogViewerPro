@@ -31,6 +31,8 @@
   },
   "include": [
     "src",
-    "electron.vite.config.ts"
+    "tests",
+    "electron.vite.config.ts",
+    "vitest.config.ts"
   ]
 }

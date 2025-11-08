@@ -2,7 +2,7 @@
 import type { BrowserWindow as ElectronBrowserWindow } from 'electron';
 
 const electronApi = electron ?? ({} as typeof import('electron'));
-const { BrowserWindow, globalShortcut } = electronApi;
+const { globalShortcut } = electronApi;
 
 /**
  * 娉ㄥ唽鍏ㄥ眬蹇嵎閿紝渚夸簬寮€鍙戣皟璇曞拰鍩虹鎿嶄綔銆? * @param mainWindow 涓荤獥鍙ｅ疄渚? */

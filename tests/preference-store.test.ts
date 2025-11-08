@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { usePreferenceStore } from '../src/renderer/stores/preferenceStore';
 import type { UserPreferences } from '../src/shared/models/preferences';

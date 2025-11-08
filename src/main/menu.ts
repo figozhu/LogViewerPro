@@ -4,7 +4,7 @@ import { IPC_CHANNELS } from '@shared/ipc-channels';
 import { resolveMenuText } from './menu-texts';
 
 const electronApi = electron ?? ({} as typeof import('electron'));
-const { app, BrowserWindow, Menu, shell } = electronApi;
+const { app, Menu, shell } = electronApi;
 
 /**
  * 构建并安装应用主菜单，适配不同平台的交互习惯。
