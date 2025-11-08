@@ -10,7 +10,7 @@ interface PreferenceState {
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   theme: 'dark',
-  defaultQueryLimit: 100,
+  defaultQueryLimit: 1000,
   rememberWindowState: true,
   windowState: {
     width: 1280,

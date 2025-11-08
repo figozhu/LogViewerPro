@@ -5,7 +5,7 @@ import type { UserPreferences } from '../src/shared/models/preferences';
 
 const samplePreferences: UserPreferences = {
   theme: 'dark',
-  defaultQueryLimit: 100,
+  defaultQueryLimit: 1000,
   rememberWindowState: true,
   windowState: {
     width: 1280,
