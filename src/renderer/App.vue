@@ -30,6 +30,20 @@ const isCancelling = ref(false);
 const isIndexing = computed(() => currentJobId.value !== null);
 const lastIndexStats = ref<{ inserted?: number; skipped?: number; unmatched?: string[] }>({});
 
+type AppTab = 'logs' | 'templates' | 'status' | 'preferences' | 'systemLog';
+
+/**
+ * 顶部标签集合，便于后续迭代时统一配置元数据
+ */
+const tabs: Array<{ id: AppTab; label: string; description: string }> = [
+  { id: 'logs', label: '日志解析', description: '打开、解析与浏览日志文件' },
+  { id: 'templates', label: '模板管理', description: '维护解析模板与快速测试正则' },
+  { id: 'status', label: '运行状态', description: '查看缓存、任务与错误看板' },
+  { id: 'systemLog', label: '系统日志', description: '查看主进程与服务日志' },
+  { id: 'preferences', label: '个性化设置', description: '切换主题、调节默认参数' }
+];
+const activeTab = ref<AppTab>('logs');
+
 let disposeMenuListener: (() => void) | null = null;
 let disposeProgressListener: (() => void) | null = null;
 let disposeCompleteListener: (() => void) | null = null;
@@ -192,11 +206,28 @@ const handleExternalFileOpen = async (filePath: string, preferredTemplateId?: st
   }
 };
 
+/**
+ * 统一的文件对话框打开流程，供菜单与快捷按钮复用
+ */
+const openFileDialogAndHandle = async (): Promise<boolean> => {
+  const result = await window.logViewerApi.openLogFileDialog();
+  if (result.canceled || result.filePaths.length === 0) {
+    return false;
+  }
+  await handleExternalFileOpen(result.filePaths[0]);
+  return true;
+};
+
 const handleMenuOpen = async () => {
   menuInvokeCount.value += 1;
-  const result = await window.logViewerApi.openLogFileDialog();
-  if (result.canceled || result.filePaths.length === 0) return;
-  await handleExternalFileOpen(result.filePaths[0]);
+  await openFileDialogAndHandle();
+};
+
+/**
+ * 顶部快捷按钮使用的打开逻辑，直接复用统一的文件对话框流程
+ */
+const handleQuickOpenClick = async () => {
+  await openFileDialogAndHandle();
 };
 
 const handleIndexProgress = (payload: IndexProgressEvent) => {
@@ -402,138 +433,173 @@ onBeforeUnmount(() => {
 <template>
   <main class="app-shell" :class="{ 'drag-active': isDragOver }">
     <header class="app-header">
-      <div>
+      <div class="brand-block">
         <h1>LogViewer Pro</h1>
-        <p>跨平台 GB 级日志分析</p>
+        <p>跨平台 GB 级日志解析工具</p>
       </div>
       <div class="header-actions">
+        <button type="button" class="primary" @click="handleQuickOpenClick">快速打开日志</button>
         <button type="button" @click="pingMainProcess">重新握手</button>
         <p>最近握手：{{ handshakeTime }}</p>
       </div>
     </header>
 
-    <section class="status-grid">
-      <section class="status-card">
-        <h2>系统状态</h2>
-        <p>模板数量：{{ templateCount }} 个</p>
-        <p>最近文件：{{ lastOpenedFile }}</p>
-        <p>
-          索引状态：{{ indexingMessage }} · 阶段：{{ progressPhase }} · 进度：{{ progressValue }}%
-        </p>
-        <p>菜单触发：{{ menuInvokeCount }} 次</p>
-        <p>最新错误：{{ latestAppError }}</p>
-        <div v-if="errorHistory.length > 0" class="error-board">
-          <h3>错误记录</h3>
-          <ul>
-            <li v-for="item in errorHistory" :key="item.timestamp">
-              <strong>{{ item.timestamp }}</strong> - {{ item.title }}：{{ item.message }}
-            </li>
-          </ul>
-        </div>
-        <p v-if="dragError" class="drag-error">{{ dragError }}</p>
-      </section>
+    <nav class="main-nav">
+      <button
+        v-for="tab in tabs"
+        :key="tab.id"
+        type="button"
+        :class="['nav-item', { active: activeTab === tab.id }]"
+        @click="activeTab = tab.id"
+      >
+        <span class="nav-label">{{ tab.label }}</span>
+        <small>{{ tab.description }}</small>
+      </button>
+    </nav>
 
-      <section class="status-card">
-        <div class="card-title">
-          <h2>索引与缓存</h2>
-          <span class="status-chip" :class="{ active: isIndexing }">
-            {{ isIndexing ? '索引中' : '已空闲' }}
-          </span>
-        </div>
-        <div class="cache-box">
-          <div>
-            <p>缓存占用：{{ cacheSummary ? formatBytes(cacheSummary.totalSize) : '尚未统计' }}</p>
-            <small>缓存条目：{{ cacheSummary ? cacheSummary.entries.length : 0 }}</small>
-            <small class="cache-path">目录：{{ cacheDirPath }}</small>
-          </div>
-          <div class="cache-actions">
-            <button type="button" :disabled="cacheInfoLoading" @click="refreshCacheSummary">
-              {{ cacheInfoLoading ? '刷新中...' : '刷新' }}
-            </button>
-            <button type="button" @click="openCacheDir">打开目录</button>
-            <button type="button" class="danger" :disabled="clearingCache" @click="clearCache">
-              {{ clearingCache ? '清理中...' : '清除缓存' }}
-            </button>
-          </div>
-        </div>
-        <ul v-if="cacheEntriesView.length" class="cache-entry-list">
-          <li v-for="entry in cacheEntriesView" :key="entry.cacheKey">
-            <div class="cache-entry-meta">
-              <strong>{{ entry.templateName || '未命名模板' }}</strong>
-              <span>{{ entry.displaySize }} · {{ entry.displayUpdatedAt }}</span>
-              <small>{{ entry.filePath }}</small>
-            </div>
-            <div class="cache-entry-stats">
-              <span>{{ entry.statsLabel }}</span>
-            </div>
-          </li>
-        </ul>
-        <p v-else class="empty-text">暂无缓存，首个索引完成后会自动生成。</p>
-
-        <div v-if="isIndexing" class="progress-box">
-          <div class="progress-header">
-            <span>索引进度：{{ progressPhase }} ({{ progressValue }}%)</span>
-            <button type="button" :disabled="isCancelling" @click="cancelIndexing">
-              {{ isCancelling ? '取消中...' : '取消任务' }}
-            </button>
-          </div>
-          <progress :value="progressValue" max="100" />
-        </div>
-        <div
-          v-else-if="lastIndexStats.inserted !== undefined || lastIndexStats.skipped !== undefined"
-          class="stats-box"
-        >
+    <section v-if="activeTab === 'logs'" class="panel logs-panel">
+      <div class="panel-header">
+        <div>
+          <h2>日志解析工作区</h2>
+          <p>当前文件：{{ lastOpenedFile }}</p>
           <p>
-            写入行数：{{ lastIndexStats.inserted ?? 0 }}；未匹配行：{{
-              lastIndexStats.skipped ?? 0
-            }}
+            索引状态：{{ indexingMessage }} · 阶段：{{ progressPhase }} · 进度：{{ progressValue }}%
           </p>
-          <div v-if="lastIndexStats.unmatched?.length" class="unmatched-box">
-            <p>未匹配示例（最多 5 行）</p>
-            <ul>
-              <li v-for="(line, index) in lastIndexStats.unmatched" :key="index">{{ line }}</li>
-            </ul>
-          </div>
         </div>
-      </section>
-
-      <section class="status-card">
-        <h2>最近记录</h2>
-        <p v-if="recentItemsView.length === 0" class="empty-text">暂无最近打开记录。</p>
-        <ul v-else class="recent-list">
-          <li v-for="item in recentItemsView" :key="item.filePath" class="recent-item">
-            <div class="recent-meta">
-              <div class="recent-title">
-                <strong>{{ item.displayName }}</strong>
-                <span v-if="item.missingTemplate" class="badge">模板已删除</span>
-              </div>
-              <span class="recent-time"
-                >上次打开：{{ item.openedAtAbsolute }}（{{ item.openedAtRelative }}）</span
-              >
-              <small>{{ item.filePath }}</small>
-            </div>
-            <div class="recent-actions">
-              <button type="button" @click="reopenRecent(item)">重新打开</button>
-            </div>
-          </li>
-        </ul>
-      </section>
+        <div class="panel-actions">
+          <button type="button" class="primary" @click="handleQuickOpenClick">选择日志文件</button>
+          <button type="button" :disabled="isIndexing" @click="refreshCacheSummary">
+            刷新缓存
+          </button>
+        </div>
+      </div>
+      <LogViewer />
     </section>
 
-    <div class="workspace">
-      <section class="panel templates-panel">
-        <TemplateManager />
-      </section>
-      <section class="panel logs-panel">
-        <LogViewer />
-      </section>
-    </div>
+    <section v-else-if="activeTab === 'templates'" class="panel templates-panel">
+      <TemplateManager />
+    </section>
 
-    <UserPreferencesPanel />
-    <SystemLogPanel />
+    <section v-else-if="activeTab === 'status'" class="panel status-panel">
+      <div class="status-grid">
+        <section class="status-card">
+          <h2>解析任务概览</h2>
+          <p>模板总数：{{ templateCount }} 个</p>
+          <p>最近文件：{{ lastOpenedFile }}</p>
+          <p>
+            索引状态：{{ indexingMessage }} · 阶段：{{ progressPhase }} · 进度：{{ progressValue }}%
+          </p>
+          <p>菜单触发：{{ menuInvokeCount }} 次</p>
+          <p>最新错误：{{ latestAppError }}</p>
+          <div v-if="errorHistory.length > 0" class="error-board">
+            <h3>错误历史</h3>
+            <ul>
+              <li v-for="item in errorHistory" :key="item.timestamp">
+                <strong>{{ item.timestamp }}</strong> - {{ item.title }} · {{ item.message }}
+              </li>
+            </ul>
+          </div>
+          <p v-if="dragError" class="drag-error">{{ dragError }}</p>
+        </section>
+
+        <section class="status-card">
+          <div class="card-title">
+            <h2>缓存与索引</h2>
+            <span class="status-chip" :class="{ active: isIndexing }">
+              {{ isIndexing ? '进行中' : '空闲' }}
+            </span>
+          </div>
+          <div class="cache-box">
+            <div>
+              <p>占用：{{ cacheSummary ? formatBytes(cacheSummary.totalSize) : '尚未统计' }}</p>
+              <small>缓存条目：{{ cacheSummary ? cacheSummary.entries.length : 0 }}</small>
+              <small class="cache-path">目录：{{ cacheDirPath }}</small>
+            </div>
+            <div class="cache-actions">
+              <button type="button" :disabled="cacheInfoLoading" @click="refreshCacheSummary">
+                {{ cacheInfoLoading ? '刷新中...' : '刷新' }}
+              </button>
+              <button type="button" @click="openCacheDir">打开目录</button>
+              <button type="button" class="danger" :disabled="clearingCache" @click="clearCache">
+                {{ clearingCache ? '清理中...' : '清空缓存' }}
+              </button>
+            </div>
+          </div>
+          <ul v-if="cacheEntriesView.length" class="cache-entry-list">
+            <li v-for="entry in cacheEntriesView" :key="entry.cacheKey">
+              <div class="cache-entry-meta">
+                <strong>{{ entry.templateName || '未命名模板' }}</strong>
+                <span>{{ entry.displaySize }} · {{ entry.displayUpdatedAt }}</span>
+                <small>{{ entry.filePath }}</small>
+              </div>
+              <div class="cache-entry-stats">
+                <span>{{ entry.statsLabel }}</span>
+              </div>
+            </li>
+          </ul>
+          <p v-else class="empty-text">暂无缓存，完成索引后会自动生成。</p>
+
+          <div v-if="isIndexing" class="progress-box">
+            <div class="progress-header">
+              <span>索引进度：{{ progressPhase }} ({{ progressValue }}%)</span>
+              <button type="button" :disabled="isCancelling" @click="cancelIndexing">
+                {{ isCancelling ? '取消中...' : '取消索引' }}
+              </button>
+            </div>
+            <progress :value="progressValue" max="100" />
+          </div>
+          <div
+            v-else-if="
+              lastIndexStats.inserted !== undefined || lastIndexStats.skipped !== undefined
+            "
+            class="stats-box"
+          >
+            <p>
+              写入：{{ lastIndexStats.inserted ?? 0 }} · 未匹配：{{ lastIndexStats.skipped ?? 0 }}
+            </p>
+            <div v-if="lastIndexStats.unmatched?.length" class="unmatched-box">
+              <p>未匹配示例（最多 5 行）</p>
+              <ul>
+                <li v-for="(line, index) in lastIndexStats.unmatched" :key="index">{{ line }}</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="status-card">
+          <h2>最近打开</h2>
+          <p v-if="recentItemsView.length === 0" class="empty-text">暂无打开记录</p>
+          <ul v-else class="recent-list">
+            <li v-for="item in recentItemsView" :key="item.filePath" class="recent-item">
+              <div class="recent-meta">
+                <div class="recent-title">
+                  <strong>{{ item.displayName }}</strong>
+                  <span v-if="item.missingTemplate" class="badge">模板已删除</span>
+                </div>
+                <span class="recent-time">
+                  上次打开：{{ item.openedAtAbsolute }} · {{ item.openedAtRelative }}
+                </span>
+                <small>{{ item.filePath }}</small>
+              </div>
+              <div class="recent-actions">
+                <button type="button" @click="reopenRecent(item)">重新打开</button>
+              </div>
+            </li>
+          </ul>
+        </section>
+      </div>
+    </section>
+
+    <section v-else-if="activeTab === 'systemLog'" class="panel system-log-panel">
+      <SystemLogPanel />
+    </section>
+
+    <section v-else class="panel preferences-panel">
+      <UserPreferencesPanel />
+    </section>
 
     <div v-if="isDragOver" class="drag-overlay">
-      <p>释放文件以开始解析</p>
+      <p>释放文件即可开始解析</p>
     </div>
   </main>
 </template>
@@ -555,37 +621,123 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  gap: 16px;
 }
 
-.app-header h1 {
+.brand-block h1 {
   margin: 0;
   font-size: 2rem;
 }
 
-.app-header p {
-  margin: 4px 0 0;
+.brand-block p {
+  margin: 6px 0 0;
   color: rgba(255, 255, 255, 0.7);
 }
 
 .header-actions {
-  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
 }
 
 .header-actions button {
   border: none;
   border-radius: 8px;
   padding: 8px 16px;
+  cursor: pointer;
+}
+
+.primary {
   background-color: #3f8cff;
   color: #fff;
+}
+
+.main-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.nav-item {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 10px 16px;
+  background: transparent;
+  color: #d7deff;
   cursor: pointer;
-  margin-bottom: 4px;
+  flex: 1 1 180px;
+  text-align: left;
+}
+
+.nav-item.active {
+  background: rgba(63, 140, 255, 0.2);
+  border-color: rgba(63, 140, 255, 0.8);
+  color: #fff;
+}
+
+.nav-item .nav-label {
+  display: block;
+  font-weight: 600;
+}
+
+.nav-item small {
+  display: block;
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+}
+
+.panel {
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.panel-header h2 {
+  margin: 0 0 6px;
+}
+
+.panel-header p {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.panel-actions button {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 8px 16px;
+  background: transparent;
+  color: #f7f7fb;
+  cursor: pointer;
+}
+
+.panel-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .status-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
-  margin-bottom: 24px;
 }
 
 .status-card {
@@ -638,6 +790,7 @@ onBeforeUnmount(() => {
 
 .cache-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 
@@ -772,26 +925,6 @@ progress {
   color: #ffc107;
 }
 
-.workspace {
-  display: grid;
-  grid-template-columns: minmax(620px, 55%) minmax(0, 1fr);
-  gap: 20px;
-  align-items: flex-start;
-}
-
-@media (max-width: 1360px) {
-  .workspace {
-    grid-template-columns: minmax(520px, 1fr) minmax(0, 1fr);
-  }
-}
-
-.panel {
-  background-color: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 16px;
-}
-
 .drag-overlay {
   position: fixed;
   inset: 0;
@@ -806,8 +939,18 @@ progress {
 }
 
 @media (max-width: 1100px) {
-  .workspace {
-    grid-template-columns: 1fr;
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .panel-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .main-nav {
+    flex-direction: column;
   }
 }
 </style>
