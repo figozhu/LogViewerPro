@@ -40,6 +40,7 @@ async function createMainWindow(): Promise<BrowserWindow> {
     minWidth: 960,
     minHeight: 600,
     show: false,
+    icon: join(__dirname, '../../buildResources/icon.png'),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       nodeIntegration: false,

@@ -25,6 +25,7 @@ module.exports = {
     main: 'dist/main/index.js'
   },
   mac: {
+    icon: 'buildResources/icon.icns',
     category: 'public.app-category.developer-tools',
     target: [
       {
@@ -40,9 +41,14 @@ module.exports = {
     iconSize: 128
   },
   win: {
+    icon: 'buildResources/icon.ico',
     target: [
       {
         target: 'nsis',
+        arch: ['x64']
+      },
+      {
+        target: 'portable',
         arch: ['x64']
       },
       'zip'
@@ -56,6 +62,7 @@ module.exports = {
     perMachine: false
   },
   linux: {
+    icon: 'buildResources/icon.png',
     target: [
       {
         target: 'AppImage',
