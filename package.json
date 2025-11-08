@@ -1,6 +1,6 @@
 {
   "name": "logviewerpro",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "跨平台日志可视化工具",
   "type": "module",
   "main": "dist/main/index.js",

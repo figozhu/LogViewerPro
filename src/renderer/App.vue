@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import TemplateManager from './components/templates/TemplateManager.vue';
-import LogViewer from './components/logs/LogViewer.vue';
+import LogViewer from './components/log-viewer/LogViewer.vue';
 import HelpCenter from './components/help/HelpCenter.vue';
 import SystemLogPanel from './components/system/SystemLogPanel.vue';
 import UserPreferencesPanel from './components/system/UserPreferencesPanel.vue';
