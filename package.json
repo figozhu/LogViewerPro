@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "npm-run-all build:worker --parallel dev:worker dev:app",
+    "dev": "npm-run-all build build:worker --parallel dev:worker dev:app",
     "dev:app": "electron-vite dev",
     "dev:worker": "tsc -p tsconfig.worker.json --watch",
     "build": "npm run typecheck && npm run build:worker && electron-vite build",

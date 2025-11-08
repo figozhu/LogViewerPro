@@ -774,8 +774,15 @@ progress {
 
 .workspace {
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: minmax(620px, 55%) minmax(0, 1fr);
   gap: 20px;
+  align-items: flex-start;
+}
+
+@media (max-width: 1360px) {
+  .workspace {
+    grid-template-columns: minmax(520px, 1fr) minmax(0, 1fr);
+  }
 }
 
 .panel {
@@ -798,7 +805,7 @@ progress {
   pointer-events: none;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1100px) {
   .workspace {
     grid-template-columns: 1fr;
   }
