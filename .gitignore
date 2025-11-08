@@ -95,6 +95,9 @@ dist
 .temp
 .cache
 
+# Electron builder output
+release/
+
 # Sveltekit cache directory
 .svelte-kit/
 
