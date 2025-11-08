@@ -75,7 +75,7 @@ export class QueryBuilder {
       this.options.orderBy ?? this.options.defaultOrderBy ?? 'id',
       '排序字段'
     );
-    const requestedDir = (this.options.orderDir ?? 'DESC').toUpperCase();
+    const requestedDir = (this.options.orderDir ?? 'ASC').toUpperCase();
     const dir = requestedDir === 'ASC' ? 'ASC' : 'DESC';
     return `ORDER BY ${table}.${column} ${dir}`;
   }

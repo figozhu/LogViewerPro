@@ -283,7 +283,7 @@ export function registerIpcHandlers(options: RegisterIpcOptions): void {
         search: request.search,
         filters: request.filters,
         orderBy: request.orderBy,
-        orderDir: request.orderDir ?? 'DESC',
+        orderDir: request.orderDir ?? 'ASC',
         limit: request.limit ?? 100,
         offset: request.offset ?? 0
       });

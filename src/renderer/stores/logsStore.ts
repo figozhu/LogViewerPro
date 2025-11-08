@@ -38,7 +38,7 @@ export const useLogsStore = defineStore('logsStore', {
       limit: 1000,
       offset: 0,
       orderBy: '',
-      orderDir: 'DESC'
+      orderDir: 'ASC'
     },
     filterOptions: {},
     selectedRow: null,
