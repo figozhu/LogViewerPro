@@ -86,10 +86,13 @@ export const useLogsStore = defineStore('logsStore', {
       }
       try {
         const offset = options.offset ?? this.query.offset ?? 0;
+        // Pinia state内部是 Proxy，直接透传到 IPC 会触发 structuredClone 报错，因此在发送前浅拷贝成普通对象。
+        const filtersPayload =
+          Object.keys(this.query.filters).length > 0 ? { ...this.query.filters } : undefined;
         const request: QueryRequest = {
           filePath: this.filePath,
           search: this.query.search || undefined,
-          filters: Object.keys(this.query.filters).length ? this.query.filters : undefined,
+          filters: filtersPayload,
           limit: this.query.limit,
           offset,
           orderBy: this.query.orderBy,
