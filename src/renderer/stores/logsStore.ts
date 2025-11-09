@@ -193,11 +193,13 @@ export const useLogsStore = defineStore('logsStore', {
     pickFilterColumns(): string[] {
       const columns = this.schema?.columns ?? [];
       if (!columns.length) return [];
+      // 排除全文搜索字段（正文字段）
+      const ftsField = this.schema?.meta['fts_field'];
       const priority = ['level', 'severity', 'status', 'service', 'env', 'host', 'method'];
       const textColumns = columns.filter(
-        (col) => !col.type || col.type.toUpperCase().includes('TEXT')
+        (col) => (!col.type || col.type.toUpperCase().includes('TEXT')) && col.name !== ftsField
       );
-      const prioritized = priority.filter((name) => columns.some((col) => col.name === name));
+      const prioritized = priority.filter((name) => columns.some((col) => col.name === name && col.name !== ftsField));
       const fallback = textColumns.map((col) => col.name);
       const merged = [...prioritized, ...fallback];
       const deduped: string[] = [];

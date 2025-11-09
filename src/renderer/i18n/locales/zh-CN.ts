@@ -51,6 +51,7 @@ const zhCN = {
       title: '日志解析工作区',
       currentFile: '当前文件：{file}',
       statusLine: '索引状态：{status} · 阶段：{phase} · 进度：{progress}%',
+      fileLabel: '当前文件',
       buttons: {
         chooseFile: '选择日志文件',
         refreshCache: '刷新缓存'
@@ -97,11 +98,16 @@ const zhCN = {
     dragOverlay: '释放文件即可开始解析',
     index: {
       phase: {
+        label: '阶段',
         idle: '无',
         preparing: '准备中',
+        parsing: '解析中',
         cacheHit: '命中缓存',
         completed: '完成',
         cancelled: '已取消'
+      },
+      progress: {
+        label: '进度'
       },
       status: {
         waiting: '等待任务',

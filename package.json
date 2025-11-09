@@ -1,6 +1,6 @@
 {
   "name": "logviewerpro",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "跨平台日志可视化工具",
   "type": "module",
   "main": "dist/main/index.js",
@@ -17,7 +17,7 @@
     "prepare": "husky",
     "postinstall": "patch-package",
     "dist": "npm run build && electron-builder -c electron-builder.config.cjs && npm run set-icon",
-    "set-icon": "node_modules\\rcedit\\bin\\rcedit.exe \"release/win-unpacked/LogViewer Pro.exe\" --set-icon \"buildResources/icon.ico\"",
+    "set-icon": "node scripts/set-icon.js",
     "test": "vitest run"
   },
   "repository": {

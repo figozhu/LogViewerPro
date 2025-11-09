@@ -51,6 +51,7 @@ const enUS = {
       title: 'Log Analysis Workspace',
       currentFile: 'Current file: {file}',
       statusLine: 'Index status: {status} · Phase: {phase} · Progress: {progress}%',
+      fileLabel: 'Current File',
       buttons: {
         chooseFile: 'Choose Log File',
         refreshCache: 'Refresh Cache'
@@ -97,11 +98,16 @@ const enUS = {
     dragOverlay: 'Drop the file here to start parsing',
     index: {
       phase: {
+        label: 'Phase',
         idle: 'Idle',
         preparing: 'Preparing',
+        parsing: 'Parsing',
         cacheHit: 'Cache Hit',
         completed: 'Completed',
         cancelled: 'Cancelled'
+      },
+      progress: {
+        label: 'Progress'
       },
       status: {
         waiting: 'Waiting for task',

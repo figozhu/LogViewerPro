@@ -88,7 +88,8 @@ const handleFilterChange = (column: string, event: Event) => {
  * 根据虚拟滚动的 endIndex 判断是否需要追加下一页数据。
  */
 const handleRangeUpdate = (payload: RangeUpdatePayload) => {
-  if (payload.endIndex >= rows.value.length - 5) {
+  // 当滚动到接近底部时（距离底部5条以内），且还有更多数据时，触发加载
+  if (hasMore.value && !loading.value && payload.endIndex >= rows.value.length - 5) {
     void logsStore.loadMore();
   }
 };
@@ -213,6 +214,7 @@ const toJsonPretty = (value: unknown): { isJson: boolean; pretty: string } => {
             :item-size="72"
             :key-field="primaryKey"
             @update="handleRangeUpdate"
+            @scroll-end="() => hasMore && !loading && logsStore.loadMore()"
           >
             <div :class="rowClasses(item, index)" @click="handleRowClick(index)">
               <div v-for="column in columns" :key="column.name" class="cell">
@@ -567,9 +569,9 @@ select:focus {
 .detail-entry pre,
 .detail-entry p {
   margin-top: 6px;
-  font-size: 12px;
-  line-height: 1.5;
-  padding: 6px;
+  font-size: 16px;
+  line-height: 1.6;
+  padding: 8px;
   border-radius: 6px;
   background-color: var(--control-bg);
   border: 1px solid var(--control-border);

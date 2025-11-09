@@ -85,13 +85,6 @@ const handshakeDisplay = computed(
 const currentFileDisplay = computed(
   () => lastOpenedFile.value ?? t('app.state.noFile')
 );
-const logsStatusText = computed(() =>
-  t('app.logsPanel.statusLine', {
-    status: indexingMessageText.value,
-    phase: progressPhaseLabel.value,
-    progress: progressValue.value
-  })
-);
 const statusOverviewText = computed(() =>
   t('app.status.statusLine', {
     status: indexingMessageText.value,
@@ -106,7 +99,7 @@ const cacheProgressText = computed(() =>
 type AppTab = 'logs' | 'templates' | 'status' | 'preferences' | 'systemLog' | 'help';
 
 /**
- * 顶部标签集合，便于后续迭代时统一配置元数�?
+ * 顶部标签集合，便于后续迭代时统一配置元数�?
  */
 const tabs = computed(
   (): Array<{ id: AppTab; label: string; description: string }> => [
@@ -230,7 +223,7 @@ watch(
 );
 
 /**
- * 以更新时间倒序展示缓存条目列表，供 UI 快速浏览最近的索引产物�?
+ * 以更新时间倒序展示缓存条目列表，供 UI 快速浏览最近的索引产物�?
  */
 const cacheEntriesView = computed(() => {
   if (!cacheSummary.value) return [];
@@ -285,7 +278,7 @@ const formatError = (error: unknown): string => {
 
 const reportError = (title: string, error: unknown) => {
   const message = formatError(error);
-  latestAppError.value = `${title}�?{message}`;
+  latestAppError.value = `${title}�?{message}`;
   appendErrorHistory(title, message);
 };
 
@@ -344,7 +337,7 @@ const handleExternalFileOpen = async (filePath: string, preferredTemplateId?: st
 };
 
 /**
- * 统一的文件对话框打开流程，供菜单与快捷按钮复�?
+ * 统一的文件对话框打开流程，供菜单与快捷按钮复�?
  */
 const openFileDialogAndHandle = async (): Promise<boolean> => {
   const result = await bridge.openLogFileDialog();
@@ -464,7 +457,7 @@ const onDrop = (event: DragEvent) => {
 };
 
 /**
- * 根据缓存统计生成可读文本，方便在列表中展示写�?跳过数量�?
+ * 根据缓存统计生成可读文本，方便在列表中展示写�?跳过数量�?
  */
 const formatCacheStats = (inserted?: number, skipped?: number): string => {
   const insertedText = inserted ?? '\u2014';
@@ -473,7 +466,7 @@ const formatCacheStats = (inserted?: number, skipped?: number): string => {
 };
 
 /**
- * 将字节数转换为可读字符串（KB/MB/GB），用于缓存占用展示�?
+ * 将字节数转换为可读字符串（KB/MB/GB），用于缓存占用展示�?
  */
 const formatBytes = (size: number): string => {
   if (!Number.isFinite(size) || size <= 0) return '0 B';
@@ -488,7 +481,7 @@ const formatBytes = (size: number): string => {
 };
 
 /**
- * 将时间戳格式化为本地时间字符串，统一 UI 展示格式�?
+ * 将时间戳格式化为本地时间字符串，统一 UI 展示格式�?
  */
 const formatDateTime = (timestamp: number): string => {
   if (!timestamp) return t('app.time.unknown');
@@ -496,7 +489,7 @@ const formatDateTime = (timestamp: number): string => {
 };
 
 /**
- * 计算相对时间（几分钟�?几小时前），用于最近列表提示�?
+ * 计算相对时间（几分钟�?几小时前），用于最近列表提示�?
  */
 const formatRelativeTime = (timestamp?: number): string => {
   if (!timestamp) return t('app.time.unknown');
@@ -614,11 +607,23 @@ onBeforeUnmount(() => {
     </nav>
 
     <section v-if="activeTab === 'logs'" class="panel logs-panel">
-      <div class="panel-header">
-        <div>
-          <h2>{{ t('app.logsPanel.title') }}</h2>
-          <p>{{ t('app.logsPanel.currentFile', { file: currentFileDisplay }) }}</p>
-          <p>{{ logsStatusText }}</p>
+      <div class="panel-header logs-header">
+        <div class="status-cards">
+          <div class="status-badge" :class="{ active: isIndexing }">
+            <span class="badge-label">{{ t('app.index.phase.label') }}</span>
+            <span class="badge-value">{{ progressPhaseLabel }}</span>
+          </div>
+          <div v-if="isIndexing" class="status-badge progress">
+            <span class="badge-label">{{ t('app.index.progress.label') }}</span>
+            <span class="badge-value">{{ progressValue }}%</span>
+            <div class="mini-progress">
+              <div class="mini-progress-bar" :style="{ width: progressValue + '%' }" />
+            </div>
+          </div>
+          <div class="status-badge file">
+            <span class="badge-label">{{ t('app.logsPanel.fileLabel') }}</span>
+            <span class="badge-value">{{ currentFileDisplay }}</span>
+          </div>
         </div>
         <div class="panel-actions">
           <button type="button" class="primary" @click="handleQuickOpenClick">
@@ -991,6 +996,76 @@ onBeforeUnmount(() => {
   background: var(--surface-color);
   border-bottom: 1px solid var(--panel-border);
   flex-shrink: 0;
+}
+
+.logs-header {
+  align-items: center;
+}
+
+.status-cards {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.status-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  min-width: 140px;
+  transition: all 0.2s ease;
+}
+
+.status-badge.active {
+  background: color-mix(in srgb, var(--accent-color) 15%, var(--panel-bg));
+  border-color: var(--accent-color);
+}
+
+.status-badge.progress {
+  background: color-mix(in srgb, #4fc3f7 15%, var(--panel-bg));
+  border-color: #4fc3f7;
+}
+
+.status-badge.file {
+  flex: 1;
+  min-width: 200px;
+}
+
+.badge-label {
+  font-size: 10px;
+  color: var(--muted-text);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.badge-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mini-progress {
+  height: 4px;
+  background: color-mix(in srgb, var(--text-color) 10%, transparent);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.mini-progress-bar {
+  height: 100%;
+  background: #4fc3f7;
+  transition: width 0.3s ease;
+  border-radius: 2px;
 }
 
 .panel-header h2 {

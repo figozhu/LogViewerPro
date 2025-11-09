@@ -49,7 +49,7 @@ export default [
     }
   },
   {
-    files: ['electron-builder.config.cjs'],
+    files: ['electron-builder.config.cjs', 'scripts/**/*.js'],
     languageOptions: {
       globals: {
         ...globals.node
