@@ -56,8 +56,8 @@ export class WorkerManager {
    */
   private getBetterSqlite3Path(): string {
     if (app.isPackaged) {
-      // 打包环境：better-sqlite3 在 app.asar.unpacked/node_modules
-      return join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'better-sqlite3');
+      // 打包环境：better-sqlite3 在 resources/worker/node_modules
+      return join(process.resourcesPath, 'worker', 'node_modules', 'better-sqlite3');
     }
     // 开发环境：使用正常的 node_modules
     return 'better-sqlite3';

@@ -19,18 +19,19 @@ module.exports = {
     'dist/preload/**/*',
     'dist/renderer/**/*',
     'buildResources/**/*',
-    'package.json',
-    'node_modules/**/*'
+    'package.json'
   ],
   extraResources: [
     {
       from: 'dist/worker',
       to: 'worker',
       filter: ['**/*']
+    },
+    {
+      from: 'node_modules/better-sqlite3',
+      to: 'worker/node_modules/better-sqlite3',
+      filter: ['**/*']
     }
-  ],
-  asarUnpack: [
-    'node_modules/better-sqlite3/**/*'
   ],
   extraMetadata: {
     main: 'dist/main/index.js'
