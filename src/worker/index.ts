@@ -1,4 +1,4 @@
-import { parentPort, type MessagePort } from 'node:worker_threads';
+import { parentPort, workerData, type MessagePort } from 'node:worker_threads';
 import type { MainToWorkerMessage } from '../shared/ipc-worker.js';
 import { IPC_CHANNELS } from '../shared/ipc-channels.js';
 import type {
@@ -15,6 +15,11 @@ const bootstrapWorker = () => {
   const port = parentPort;
   if (!port) {
     throw new Error('Current thread is not a worker; cannot start the indexing engine.');
+  }
+
+  // 设置 better-sqlite3 路径到全局，供其他模块使用
+  if (workerData?.betterSqlite3Path) {
+    (globalThis as any).__BETTER_SQLITE3_PATH__ = workerData.betterSqlite3Path;
   }
 
   port.on('message', (message: MainToWorkerMessage) => {

@@ -16,7 +16,8 @@
     "format": "prettier --write \"src/**/*.{ts,vue,css}\"",
     "prepare": "husky",
     "postinstall": "patch-package",
-    "dist": "npm run build && electron-builder -c electron-builder.config.cjs && npm run set-icon",
+    "dist:ci": "npm run build && electron-builder -c electron-builder.config.cjs -c.win.signAndEditExecutable=true",
+    "dist:win": "npm run build && electron-builder -c electron-builder.config.cjs && npm run set-icon",
     "set-icon": "node scripts/set-icon.js",
     "test": "vitest run"
   },

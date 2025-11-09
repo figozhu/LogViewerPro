@@ -29,7 +29,7 @@ jobs:
         run: npm install
 
       - name: Build & Package
-        run: npm run dist
+        run: npm run dist:ci
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

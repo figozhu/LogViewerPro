@@ -1,7 +1,12 @@
-import Database from 'better-sqlite3';
 import { dirname } from 'node:path';
 import { mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import type { IndexWorkerCacheInfo, IndexWorkerTemplate } from '../../shared/models/indexing.js';
+import type BetterSqlite3 from 'better-sqlite3';
+
+const require = createRequire(import.meta.url);
+const betterSqlite3Path = (globalThis as any).__BETTER_SQLITE3_PATH__ || 'better-sqlite3';
+const Database = require(betterSqlite3Path) as typeof BetterSqlite3;
 
 const NAMED_GROUP_REGEX = /\(\?<([A-Za-z0-9_]+)>/g;
 
@@ -16,7 +21,7 @@ export class SchemaBuilder {
 
   public build(): string[] {
     mkdirSync(dirname(this.cacheInfo.dbPath), { recursive: true });
-    const db = new Database(this.cacheInfo.dbPath);
+    const db = new (Database as any)(this.cacheInfo.dbPath) as BetterSqlite3.Database;
     try {
       const columns = this.extractColumns();
       this.createLogsTable(db, columns);
@@ -52,7 +57,7 @@ export class SchemaBuilder {
     return Array.from(matches);
   }
 
-  private createLogsTable(db: Database.Database, columns: string[]): void {
+  private createLogsTable(db: BetterSqlite3.Database, columns: string[]): void {
     const columnSql = columns
       .map((name) => {
         const columnType = name === this.template.timestampField ? 'INTEGER' : 'TEXT';
@@ -63,7 +68,7 @@ export class SchemaBuilder {
     db.exec(`CREATE TABLE logs (id INTEGER PRIMARY KEY AUTOINCREMENT, ${columnSql});`);
   }
 
-  private createFtsTable(db: Database.Database): void {
+  private createFtsTable(db: BetterSqlite3.Database): void {
     const ftsField = this.template.ftsField;
     db.exec('DROP TABLE IF EXISTS logs_fts;');
     db.exec(
@@ -86,12 +91,12 @@ export class SchemaBuilder {
     );
   }
 
-  private createMetaTable(db: Database.Database): void {
+  private createMetaTable(db: BetterSqlite3.Database): void {
     db.exec('DROP TABLE IF EXISTS meta;');
     db.exec('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);');
   }
 
-  private writeMeta(db: Database.Database): void {
+  private writeMeta(db: BetterSqlite3.Database): void {
     const stmt = db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');
     const metaEntries: Array<[string, string]> = [
       ['template_id', this.template.id],

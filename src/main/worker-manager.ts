@@ -28,12 +28,12 @@ export class WorkerManager {
       return this.worker;
     }
 
-    // 获取 worker 文件路径
-    // 开发环境: dist/main -> dist/worker/index.js
-    // 打包环境: app.asar/dist/main -> app.asar.unpacked/dist/worker/index.js
     const workerEntry = this.getWorkerPath();
-    const worker = new Worker(pathToFileURL(workerEntry));
-    logger.info('Worker thread created', { workerEntry });
+    const betterSqlite3Path = this.getBetterSqlite3Path();
+    const worker = new Worker(pathToFileURL(workerEntry), {
+      workerData: { betterSqlite3Path }
+    });
+    logger.info('Worker thread created', { workerEntry, betterSqlite3Path });
     this.worker = worker;
     this.bindWorker(worker);
     return worker;
@@ -49,6 +49,18 @@ export class WorkerManager {
     }
     // 开发环境：从 dist/main 到 dist/worker/worker
     return join(__dirname, '..', 'worker', 'worker', 'index.js');
+  }
+
+  /**
+   * 获取 better-sqlite3 模块的正确路径
+   */
+  private getBetterSqlite3Path(): string {
+    if (app.isPackaged) {
+      // 打包环境：better-sqlite3 在 app.asar.unpacked/node_modules
+      return join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'better-sqlite3');
+    }
+    // 开发环境：使用正常的 node_modules
+    return 'better-sqlite3';
   }
 
   /**

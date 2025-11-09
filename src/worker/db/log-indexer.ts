@@ -1,7 +1,12 @@
-import Database from 'better-sqlite3';
 import { createReadStream, type ReadStream } from 'node:fs';
 import * as readline from 'node:readline';
+import { createRequire } from 'node:module';
 import type { IndexWorkerCacheInfo, IndexWorkerTemplate } from '../../shared/models/indexing.js';
+import type BetterSqlite3 from 'better-sqlite3';
+
+const require = createRequire(import.meta.url);
+const betterSqlite3Path = (globalThis as any).__BETTER_SQLITE3_PATH__ || 'better-sqlite3';
+const Database = require(betterSqlite3Path) as typeof BetterSqlite3;
 
 export interface IndexResult {
   inserted: number;
@@ -32,7 +37,7 @@ export class LogIndexer {
   }
 
   public async run(reportProgress: (progress: number) => void): Promise<IndexResult> {
-    const db = new Database(this.cacheInfo.dbPath);
+    const db = new (Database as any)(this.cacheInfo.dbPath) as BetterSqlite3.Database;
     try {
       const insertStmt = this.prepareInsert(db);
       const insertMany = db.transaction((rows: Record<string, unknown>[]) => {
@@ -121,7 +126,7 @@ export class LogIndexer {
     }
   }
 
-  private prepareInsert(db: Database.Database) {
+  private prepareInsert(db: BetterSqlite3.Database) {
     const columnSql = this.columns.map((name) => `"${name}"`).join(', ');
     const paramSql = this.columns.map((name) => `@${name}`).join(', ');
     return db.prepare(`INSERT INTO logs (${columnSql}) VALUES (${paramSql});`);
