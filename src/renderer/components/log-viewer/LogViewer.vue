@@ -78,7 +78,7 @@ const handleSearch = () => {
  * 变更过滤器，并重新执行查询。
  */
 const handleFilterChange = (column: string, event: Event) => {
-  const value = (event.target as HTMLSelectElement).value;
+  const value = (event.target as HTMLInputElement).value.trim();
   logsStore.setFilter(column, value);
   logsStore.resetPagination();
   void logsStore.refresh();
@@ -179,16 +179,17 @@ const toJsonPretty = (value: unknown): { isJson: boolean; pretty: string } => {
         <div v-if="Object.keys(filterOptions).length" class="filters">
           <div v-for="(options, column) in filterOptions" :key="column" class="filter-item">
             <label :for="`filter-${column}`">{{ column }}</label>
-            <select
+            <input
               :id="`filter-${column}`"
+              :list="`datalist-${column}`"
+              type="text"
               :value="query.filters[column] ?? ''"
+              :placeholder="t('logViewer.filterAll')"
               @change="handleFilterChange(column, $event)"
-            >
-              <option value="">{{ t('logViewer.filterAll') }}</option>
-              <option v-for="option in options" :key="option" :value="option">
-                {{ option }}
-              </option>
-            </select>
+            />
+            <datalist :id="`datalist-${column}`">
+              <option v-for="option in options" :key="option" :value="option" />
+            </datalist>
           </div>
         </div>
 
@@ -371,24 +372,15 @@ button:not(:disabled):hover {
   min-width: 160px;
 }
 
-select {
-  padding: 6px 32px 6px 10px;
+.filter-item input {
+  padding: 6px 10px;
   border-radius: 8px;
   background-color: var(--control-bg);
   color: var(--text-color);
   border: 1px solid var(--control-border);
-  appearance: none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--muted-text) 50%),
-    linear-gradient(135deg, var(--muted-text) 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) calc(50% - 2px),
-    calc(100% - 12px) calc(50% - 2px);
-  background-size: 6px 6px, 6px 6px;
-  background-repeat: no-repeat;
 }
 
-select:focus {
+.filter-item input:focus {
   outline: none;
   border-color: var(--accent-color);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 45%, transparent);

@@ -1,6 +1,6 @@
 {
   "name": "logviewerpro",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "跨平台日志可视化工具",
   "type": "module",
   "main": "dist/main/index.js",
@@ -8,7 +8,8 @@
     "dev": "npm-run-all build build:worker --parallel dev:worker dev:app",
     "dev:app": "electron-vite dev",
     "dev:worker": "tsc -p tsconfig.worker.json --watch",
-    "build": "npm run typecheck && npm run build:worker && electron-vite build",
+    "build": "npm run typecheck && npm run build:worker && npm run copy-assets && electron-vite build",
+    "copy-assets": "node -e \"require('fs').copyFileSync('buildResources/icon.png','src/renderer/assets/icon.png')\"",
     "build:worker": "tsc -p tsconfig.worker.json",
     "preview": "electron-vite preview",
     "typecheck": "vue-tsc --noEmit",

@@ -32,8 +32,8 @@ async function createMainWindow(): Promise<BrowserWindow> {
   const preferences = preferencesStore.get();
   const storedState = preferences.windowState ?? { width: 1280, height: 800 };
   const rememberState = preferences.rememberWindowState;
-  const iconPath = __dirname.includes('app.asar')
-    ? join(process.resourcesPath, 'app.asar.unpacked/buildResources/icon.png')
+  const iconPath = app.isPackaged
+    ? join(process.resourcesPath, 'icon.png')
     : join(__dirname, '../../buildResources/icon.png');
 
   const browserOptions: Electron.BrowserWindowConstructorOptions = {

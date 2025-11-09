@@ -571,8 +571,11 @@ onBeforeUnmount(() => {
   <main class="app-shell" :class="{ 'drag-active': isDragOver }">
     <header class="app-header">
       <div class="brand-block">
-        <h1>{{ t('app.header.title') }}</h1>
-        <p>{{ t('app.header.subtitle') }}</p>
+        <img src="./assets/icon.png" alt="LogViewer Pro" class="brand-icon" />
+        <div>
+          <h1>{{ t('app.header.title') }}</h1>
+          <p>{{ t('app.header.subtitle') }}</p>
+        </div>
       </div>
       <div class="header-actions">
         <button type="button" class="primary" @click="handleQuickOpenClick">
@@ -827,6 +830,17 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   border-bottom: 1px solid var(--panel-border);
   background: var(--surface-color);
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  width: 48px;
+  height: 48px;
 }
 
 .brand-block h1 {
