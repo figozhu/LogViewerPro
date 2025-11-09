@@ -414,8 +414,7 @@ select:focus {
 }
 
 .table-header {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  display: flex;
   background-color: color-mix(in srgb, var(--text-color) 8%, transparent);
   border-bottom: 1px solid var(--panel-border);
 }
@@ -425,6 +424,13 @@ select:focus {
   font-weight: 600;
   padding: 8px 10px;
   text-transform: uppercase;
+  flex-shrink: 0;
+  min-width: 100px;
+}
+
+.table-header .cell:last-child {
+  flex: 1;
+  min-width: 200px;
 }
 
 .log-scroller {
@@ -433,8 +439,7 @@ select:focus {
 }
 
 .log-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  display: flex;
   padding: 8px 10px;
   border-bottom: 1px solid var(--panel-border);
   transition: background 0.2s ease;
@@ -450,7 +455,7 @@ select:focus {
   background-color: color-mix(in srgb, var(--accent-color) 45%, transparent);
 }
 
-.cell {
+.log-row .cell {
   font-size: 13px;
   line-height: 1.4;
   word-break: break-all;
@@ -459,6 +464,15 @@ select:focus {
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
+  padding-right: 12px;
+  flex-shrink: 0;
+  min-width: 100px;
+}
+
+.log-row .cell:last-child {
+  flex: 1;
+  min-width: 200px;
+  padding-right: 0;
 }
 
 .level-pill {
