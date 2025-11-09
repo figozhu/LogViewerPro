@@ -83,14 +83,16 @@ describe('templateStore', () => {
     store.currentForm = {
       id: undefined,
       name: '',
-      regex: '\\[(?<timestamp>.*?)\\] (?<level>INFO|ERROR) (?<message>.*)',
+      regex: '\\[(?<timestamp>.*?)\\] (?<level>INFO|ERROR) (?<message>[\\s\\S]+)',
       timestampField: 'timestamp',
       ftsField: 'message',
-      sampleInput: '[2024-01-01] INFO Hello\ninvalid'
+      sampleInput: '[2024-01-01 10:00:00] INFO Hello\nworld\n[2024-01-01 10:00:01] ERROR Failed'
     };
     store.runRegexTest();
     expect(store.testResults).toHaveLength(2);
     expect(store.testResults[0]?.matched).toBe(true);
-    expect(store.testResults[1]?.matched).toBe(false);
+    expect(store.testResults[0]?.groups.message).toBe('Hello\nworld');
+    expect(store.testResults[1]?.matched).toBe(true);
+    expect(store.testResults[1]?.groups.message).toBe('Failed');
   });
 });

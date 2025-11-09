@@ -18,6 +18,7 @@ export interface IndexResult {
 export class LogIndexer {
   private cancelled = false;
   private readonly regex: RegExp;
+  private readonly logStartRegex: RegExp;
   private stream?: ReadStream;
   private reader?: readline.Interface;
 
@@ -28,6 +29,8 @@ export class LogIndexer {
     private readonly columns: string[]
   ) {
     this.regex = new RegExp(this.template.regex);
+    // 检测日志起始行：以 [ 开头后跟日期时间格式
+    this.logStartRegex = /^\[\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}/;
   }
 
   public cancel(): void {
@@ -58,6 +61,7 @@ export class LogIndexer {
       const unmatchedSamples: string[] = [];
       let skipped = 0;
       let lastProgress = 0;
+      let currentLogBuffer = ''; // 多行日志缓冲区
 
       const flush = () => {
         if (!buffer.length) {
@@ -66,24 +70,43 @@ export class LogIndexer {
         insertMany(buffer.splice(0, buffer.length));
       };
 
+      const processLogEntry = (logEntry: string) => {
+        const row = this.parseLine(logEntry);
+        if (row) {
+          buffer.push(row);
+          if (buffer.length >= batchSize) {
+            const batchCount = buffer.length;
+            flush();
+            inserted += batchCount;
+          }
+        } else {
+          skipped += 1;
+          if (unmatchedSamples.length < 5) {
+            unmatchedSamples.push(logEntry.substring(0, 200));
+          }
+        }
+      };
+
       try {
         for await (const line of rl) {
           if (this.cancelled) {
             break;
           }
-          const row = this.parseLine(line);
-          if (row) {
-            buffer.push(row);
-            if (buffer.length >= batchSize) {
-              const batchCount = buffer.length;
-              flush();
-              inserted += batchCount;
+
+          // 判断是否为新日志的开始
+          if (this.logStartRegex.test(line)) {
+            // 处理之前缓冲的完整日志
+            if (currentLogBuffer) {
+              processLogEntry(currentLogBuffer);
             }
+            // 开始新的日志条目
+            currentLogBuffer = line;
+          } else if (currentLogBuffer) {
+            // 追加到当前日志
+            currentLogBuffer += '\n' + line;
           } else {
+            // 文件开头的非日志行，跳过
             skipped += 1;
-            if (unmatchedSamples.length < 5) {
-              unmatchedSamples.push(line);
-            }
           }
 
           const bytesRead = stream.bytesRead ?? 0;
@@ -95,6 +118,10 @@ export class LogIndexer {
             lastProgress = percent;
             reportProgress(percent);
           }
+        }
+        // 处理最后一条日志
+        if (currentLogBuffer) {
+          processLogEntry(currentLogBuffer);
         }
       } finally {
         rl.close();

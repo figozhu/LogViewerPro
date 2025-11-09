@@ -145,6 +145,7 @@ export const useTemplateStore = defineStore('templateStore', {
 
     /**
      * 执行 Regex 测试，用于预览命名捕获组的匹配情况。
+     * 支持多行日志：通过检测日志起始行来分割日志条目
      */
     runRegexTest(): void {
       this.errorMessage = '';
@@ -154,20 +155,36 @@ export const useTemplateStore = defineStore('templateStore', {
           this.testResults = [];
           return;
         }
-        const regex = new RegExp(this.currentForm.regex, 'gm');
-        const samples = this.currentForm.sampleInput
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .filter((line) => line.length > 0);
+        const regex = new RegExp(this.currentForm.regex);
+        const logStartRegex = /^\[\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}/;
+        
+        // 将输入按行分割，然后合并多行日志
+        const lines = this.currentForm.sampleInput.split(/\r?\n/);
+        const logEntries: string[] = [];
+        let currentLog = '';
+        
+        for (const line of lines) {
+          if (logStartRegex.test(line)) {
+            if (currentLog) {
+              logEntries.push(currentLog);
+            }
+            currentLog = line;
+          } else if (currentLog) {
+            currentLog += '\n' + line;
+          }
+        }
+        if (currentLog) {
+          logEntries.push(currentLog);
+        }
 
-        const results: RegexTestResult[] = samples.map((line) => {
+        const results: RegexTestResult[] = logEntries.map((logEntry) => {
           regex.lastIndex = 0;
-          const match = regex.exec(line);
+          const match = regex.exec(logEntry);
           if (!match || !match.groups) {
-            return { line, matched: false, groups: {} };
+            return { line: logEntry, matched: false, groups: {} };
           }
           return {
-            line,
+            line: logEntry,
             matched: true,
             groups: match.groups
           };
