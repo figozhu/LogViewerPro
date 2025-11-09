@@ -210,7 +210,7 @@ const toJsonPretty = (value: unknown): { isJson: boolean; pretty: string } => {
             v-slot="{ item, index }"
             class="log-scroller"
             :items="rows"
-            :item-size="48"
+            :item-size="72"
             :key-field="primaryKey"
             @update="handleRangeUpdate"
           >
@@ -439,6 +439,7 @@ select:focus {
   border-bottom: 1px solid var(--panel-border);
   transition: background 0.2s ease;
   cursor: pointer;
+  align-items: start;
 }
 
 .log-row:hover {
@@ -453,6 +454,11 @@ select:focus {
   font-size: 13px;
   line-height: 1.4;
   word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
 
 .level-pill {
