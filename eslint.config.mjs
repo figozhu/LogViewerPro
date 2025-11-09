@@ -7,7 +7,7 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', '.husky/**']
+    ignores: ['dist/**', 'node_modules/**', '.husky/**', 'release/**']
   },
   js.configs.recommended,
   ...pluginVue.configs['flat/recommended'],
@@ -34,7 +34,7 @@ export default [
       }
     },
     rules: {
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
       'vue/multi-word-component-names': 'off'
     }

@@ -266,38 +266,55 @@ const toJsonPretty = (value: unknown): { isJson: boolean; pretty: string } => {
 
 <style scoped>
 .log-viewer {
-  margin-top: 24px;
-  padding: 24px;
-  border-radius: 16px;
-  background-color: var(--panel-bg);
-  border: 1px solid var(--panel-border);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   color: var(--text-color);
 }
 
-.viewer-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  margin-top: 16px;
+.log-viewer > h2 {
+  padding: 16px 24px 0;
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
 }
 
-.list-pane,
-.details-pane {
-  background-color: var(--surface-color);
-  border-radius: 12px;
-  padding: 16px;
-  border: 1px solid var(--panel-border);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+.log-viewer > p.placeholder {
+  padding: 16px 24px;
+  color: var(--muted-text);
+}
+
+.viewer-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 0;
+  overflow: hidden;
 }
 
 .list-pane {
-  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface-color);
+  border-right: 1px solid var(--panel-border);
+  overflow: hidden;
+}
+
+.details-pane {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface-color);
+  overflow: hidden;
 }
 
 .controls {
   display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--surface-color);
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
 }
 
 input {
@@ -337,9 +354,12 @@ button:not(:disabled):hover {
 
 .filters {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  padding: 10px 16px;
+  background: var(--surface-color);
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
 }
 
 .filter-item {
@@ -375,16 +395,20 @@ select:focus {
 .meta-row {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
-  margin-bottom: 8px;
+  font-size: 12px;
+  padding: 8px 16px;
   color: var(--muted-text);
+  background: var(--surface-color);
+  border-bottom: 1px solid var(--panel-border);
   flex-wrap: wrap;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .table-wrapper {
-  border: 1px solid var(--panel-border);
-  border-radius: 12px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background-color: var(--surface-color);
 }
@@ -404,7 +428,8 @@ select:focus {
 }
 
 .log-scroller {
-  height: 360px;
+  flex: 1;
+  min-height: 0;
 }
 
 .log-row {
@@ -465,32 +490,35 @@ select:focus {
   color: #ce93d8;
 }
 
-.details-pane {
-  display: flex;
-  flex-direction: column;
-}
-
 .details-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
 }
 
 .details-header h3 {
   margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
 }
 
 .details-meta {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted-text);
 }
 
+.details-header + .placeholder {
+  padding: 16px;
+}
+
 .detail-list {
-  margin-top: 12px;
-  max-height: 40vh;
+  flex: 1;
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 0 16px 16px;
 }
 
 .detail-entry {
@@ -531,22 +559,35 @@ select:focus {
 
 .error {
   color: #ef5350;
+  padding: 12px 16px;
+  margin: 0;
 }
 
 .placeholder {
   color: var(--muted-text);
-}
-
-.hint {
-  font-size: 12px;
-  padding: 8px 10px;
-  color: var(--muted-text);
+  padding: 16px;
   margin: 0;
 }
 
+.hint {
+  font-size: 11px;
+  padding: 6px 16px;
+  color: var(--muted-text);
+  margin: 0;
+  background: var(--surface-color);
+  border-top: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+
 @media (max-width: 1180px) {
+  .viewer-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 300px;
+  }
+
   .list-pane {
-    min-height: 420px;
+    border-right: none;
+    border-bottom: 1px solid var(--panel-border);
   }
 }
 </style>

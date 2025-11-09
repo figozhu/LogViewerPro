@@ -16,7 +16,8 @@
     "format": "prettier --write \"src/**/*.{ts,vue,css}\"",
     "prepare": "husky",
     "postinstall": "patch-package",
-    "dist": "npm run build && electron-builder -c electron-builder.config.cjs",
+    "dist": "npm run build && electron-builder -c electron-builder.config.cjs && npm run set-icon",
+    "set-icon": "node_modules\\rcedit\\bin\\rcedit.exe \"release/win-unpacked/LogViewer Pro.exe\" --set-icon \"buildResources/icon.ico\"",
     "test": "vitest run"
   },
   "repository": {
@@ -58,6 +59,7 @@
     "npm-run-all": "^4.1.5",
     "patch-package": "^8.0.1",
     "prettier": "^3.6.2",
+    "rcedit": "^5.0.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.3",
     "vite": "^7.2.2",

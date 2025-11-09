@@ -1,6 +1,7 @@
 import { Worker } from 'node:worker_threads';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { app } from 'electron';
 import { IPC_CHANNELS } from '@shared/ipc-channels';
 import type { MainToWorkerMessage, WorkerToMainMessage } from '@shared/ipc-worker';
 import { logger } from './logger';
@@ -27,12 +28,27 @@ export class WorkerManager {
       return this.worker;
     }
 
-    const workerEntry = join(__dirname, '../worker/worker/index.js');
+    // 获取 worker 文件路径
+    // 开发环境: dist/main -> dist/worker/index.js
+    // 打包环境: app.asar/dist/main -> app.asar.unpacked/dist/worker/index.js
+    const workerEntry = this.getWorkerPath();
     const worker = new Worker(pathToFileURL(workerEntry));
     logger.info('Worker thread created', { workerEntry });
     this.worker = worker;
     this.bindWorker(worker);
     return worker;
+  }
+
+  /**
+   * 获取 worker 文件的正确路径
+   */
+  private getWorkerPath(): string {
+    if (app.isPackaged) {
+      // 打包环境：worker 在 resources/worker 目录
+      return join(process.resourcesPath, 'worker', 'worker', 'index.js');
+    }
+    // 开发环境：从 dist/main 到 dist/worker/worker
+    return join(__dirname, '..', 'worker', 'worker', 'index.js');
   }
 
   /**

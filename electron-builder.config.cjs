@@ -18,8 +18,19 @@ module.exports = {
     'dist/main/**/*',
     'dist/preload/**/*',
     'dist/renderer/**/*',
+    'buildResources/**/*',
     'package.json',
     'node_modules/**/*'
+  ],
+  extraResources: [
+    {
+      from: 'dist/worker',
+      to: 'worker',
+      filter: ['**/*']
+    }
+  ],
+  asarUnpack: [
+    'node_modules/better-sqlite3/**/*'
   ],
   extraMetadata: {
     main: 'dist/main/index.js'
@@ -47,17 +58,10 @@ module.exports = {
         target: 'nsis',
         arch: ['x64']
       },
-      {
-        target: 'portable',
-        arch: ['x64']
-      },
       'zip'
     ],
     artifactName: '${productName}-${version}-win-${arch}.${ext}',
     signAndEditExecutable: false
-  },
-  portable: {
-    artifactName: '${productName}-${version}-win-${arch}-portable.${ext}'
   },
   nsis: {
     oneClick: false,

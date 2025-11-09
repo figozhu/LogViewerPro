@@ -106,7 +106,7 @@ const cacheProgressText = computed(() =>
 type AppTab = 'logs' | 'templates' | 'status' | 'preferences' | 'systemLog' | 'help';
 
 /**
- * 顶部标签集合，便于后续迭代时统一配置元数据
+ * 顶部标签集合，便于后续迭代时统一配置元数�?
  */
 const tabs = computed(
   (): Array<{ id: AppTab; label: string; description: string }> => [
@@ -230,7 +230,7 @@ watch(
 );
 
 /**
- * 以更新时间倒序展示缓存条目列表，供 UI 快速浏览最近的索引产物。
+ * 以更新时间倒序展示缓存条目列表，供 UI 快速浏览最近的索引产物�?
  */
 const cacheEntriesView = computed(() => {
   if (!cacheSummary.value) return [];
@@ -248,7 +248,7 @@ const cacheEntriesView = computed(() => {
 const cacheDirPath = computed(() => cacheSummary.value?.cacheDir ?? t('app.cache.noDir'));
 
 /**
- * 最近打开列表的展示模型，附带时间描述与模板可用性标记。
+ * 最近打开列表的展示模型，附带时间描述与模板可用性标记�?
  */
 const recentItemsView = computed(() => {
   const templateMap = new Map(templates.value.map((tpl) => [tpl.id, tpl]));
@@ -285,7 +285,7 @@ const formatError = (error: unknown): string => {
 
 const reportError = (title: string, error: unknown) => {
   const message = formatError(error);
-  latestAppError.value = `${title}：${message}`;
+  latestAppError.value = `${title}�?{message}`;
   appendErrorHistory(title, message);
 };
 
@@ -344,7 +344,7 @@ const handleExternalFileOpen = async (filePath: string, preferredTemplateId?: st
 };
 
 /**
- * 统一的文件对话框打开流程，供菜单与快捷按钮复用
+ * 统一的文件对话框打开流程，供菜单与快捷按钮复�?
  */
 const openFileDialogAndHandle = async (): Promise<boolean> => {
   const result = await bridge.openLogFileDialog();
@@ -406,7 +406,7 @@ const reopenRecent = async (item: { filePath: string; templateId: string }) => {
 };
 
 /**
- * 主动拉取缓存汇总信息，配合索引流程保持 UI 与磁盘状态一致。
+ * 主动拉取缓存汇总信息，配合索引流程保持 UI 与磁盘状态一致�?
  */
 const refreshCacheSummary = async () => {
   cacheInfoLoading.value = true;
@@ -464,16 +464,16 @@ const onDrop = (event: DragEvent) => {
 };
 
 /**
- * 根据缓存统计生成可读文本，方便在列表中展示写入/跳过数量。
+ * 根据缓存统计生成可读文本，方便在列表中展示写�?跳过数量�?
  */
 const formatCacheStats = (inserted?: number, skipped?: number): string => {
-  const insertedText = inserted ?? '—';
-  const skippedText = skipped ?? '—';
+  const insertedText = inserted ?? '\u2014';
+  const skippedText = skipped ?? '\u2014';
   return t('app.cache.stats', { inserted: insertedText, skipped: skippedText });
 };
 
 /**
- * 将字节数转换为可读字符串（KB/MB/GB），用于缓存占用展示。
+ * 将字节数转换为可读字符串（KB/MB/GB），用于缓存占用展示�?
  */
 const formatBytes = (size: number): string => {
   if (!Number.isFinite(size) || size <= 0) return '0 B';
@@ -488,7 +488,7 @@ const formatBytes = (size: number): string => {
 };
 
 /**
- * 将时间戳格式化为本地时间字符串，统一 UI 展示格式。
+ * 将时间戳格式化为本地时间字符串，统一 UI 展示格式�?
  */
 const formatDateTime = (timestamp: number): string => {
   if (!timestamp) return t('app.time.unknown');
@@ -496,7 +496,7 @@ const formatDateTime = (timestamp: number): string => {
 };
 
 /**
- * 计算相对时间（几分钟前/几小时前），用于最近列表提示。
+ * 计算相对时间（几分钟�?几小时前），用于最近列表提示�?
  */
 const formatRelativeTime = (timestamp?: number): string => {
   if (!timestamp) return t('app.time.unknown');
@@ -795,138 +795,190 @@ onBeforeUnmount(() => {
 </template>
 
 
+
+
 <style scoped>
 .app-shell {
-  min-height: 100vh;
-  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
   background: var(--app-shell-bg);
   color: var(--text-color);
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .app-shell.drag-active {
-  border: 2px dashed rgba(63, 140, 255, 0.6);
+  outline: 3px dashed rgba(63, 140, 255, 0.6);
+  outline-offset: -8px;
 }
 
 .app-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  padding: 12px 24px;
   gap: 16px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--surface-color);
 }
 
 .brand-block h1 {
   margin: 0;
-  font-size: 2rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .brand-block p {
-  margin: 6px 0 0;
+  margin: 3px 0 0;
   color: var(--muted-text);
+  font-size: 12px;
 }
 
 .header-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
 }
 
 .header-actions button {
   border: 1px solid var(--control-border);
-  border-radius: 8px;
-  padding: 8px 16px;
+  border-radius: 6px;
+  padding: 6px 12px;
   background-color: var(--control-bg);
   color: var(--text-color);
   cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.header-actions button:hover {
+  background-color: color-mix(in srgb, var(--text-color) 8%, var(--control-bg));
+}
+
+.header-actions p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted-text);
+  white-space: nowrap;
 }
 
 .language-switcher {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  font-size: 12px;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
   color: var(--muted-text);
 }
 
 .language-switcher select {
-  margin-top: 4px;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid var(--control-border);
-  padding: 6px 32px 6px 10px;
+  padding: 4px 24px 4px 8px;
   background-color: var(--control-bg);
   color: var(--text-color);
-  min-width: 160px;
+  min-width: 100px;
+  font-size: 11px;
   appearance: none;
   background-image:
     linear-gradient(45deg, transparent 50%, var(--muted-text) 50%),
     linear-gradient(135deg, var(--muted-text) 50%, transparent 50%);
   background-position:
-    calc(100% - 18px) calc(50% - 2px),
-    calc(100% - 12px) calc(50% - 2px);
-  background-size: 6px 6px, 6px 6px;
+    calc(100% - 12px) calc(50% - 2px),
+    calc(100% - 8px) calc(50% - 2px);
+  background-size: 4px 4px, 4px 4px;
   background-repeat: no-repeat;
+  transition: all 0.2s ease;
+}
+
+.language-switcher select:hover {
+  border-color: var(--accent-color);
 }
 
 .language-switcher select:focus {
   outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 45%, transparent);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 25%, transparent);
 }
 
 .primary {
-  background-color: var(--accent-color);
-  color: var(--accent-contrast);
+  background-color: var(--accent-color) !important;
+  color: var(--accent-contrast) !important;
+  border-color: var(--accent-color) !important;
+}
+
+.primary:hover {
+  background-color: color-mix(in srgb, var(--accent-color) 90%, black) !important;
 }
 
 .main-nav {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 0;
+  padding: 0 24px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--surface-color);
 }
 
 .nav-item {
-  border: 1px solid var(--panel-border);
-  border-radius: 12px;
-  padding: 10px 16px;
-  background: var(--panel-bg);
-  color: var(--text-color);
+  position: relative;
+  border: none;
+  border-radius: 0;
+  padding: 12px 18px;
+  background: transparent;
+  color: var(--muted-text);
   cursor: pointer;
-  flex: 1 1 180px;
   text-align: left;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.nav-item:hover {
+  color: var(--text-color);
+  background: color-mix(in srgb, var(--text-color) 4%, transparent);
 }
 
 .nav-item.active {
-  background: rgba(63, 140, 255, 0.15);
-  border-color: rgba(63, 140, 255, 0.8);
-  color: var(--accent-contrast);
+  color: var(--accent-color);
+  background: transparent;
+  border-bottom-color: var(--accent-color);
 }
 
 .nav-item .nav-label {
   display: block;
   font-weight: 600;
+  font-size: 13px;
 }
 
 .nav-item small {
   display: block;
-  margin-top: 4px;
+  margin-top: 2px;
   color: var(--muted-text);
-  font-size: 12px;
+  font-size: 10px;
+  font-weight: 400;
 }
 
 .panel {
-  background-color: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: 16px;
-  padding: 20px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
   color: var(--text-color);
+}
+
+.logs-panel {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .help-panel {
   padding: 0;
-  border: none;
   background: transparent;
 }
 
@@ -935,32 +987,46 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  margin-bottom: 16px;
+  padding: 16px 24px;
+  background: var(--surface-color);
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
 }
 
 .panel-header h2 {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
+  font-size: 1.15rem;
+  font-weight: 600;
 }
 
 .panel-header p {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   color: var(--muted-text);
+  font-size: 12px;
 }
 
 .panel-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   justify-content: flex-end;
 }
 
 .panel-actions button {
   border: 1px solid var(--control-border);
-  border-radius: 8px;
-  padding: 8px 16px;
+  border-radius: 6px;
+  padding: 6px 12px;
   background: var(--control-bg);
   color: var(--text-color);
   cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.panel-actions button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text-color) 8%, var(--control-bg));
+  transform: translateY(-1px);
 }
 
 .panel-actions button:disabled {
@@ -970,21 +1036,23 @@ onBeforeUnmount(() => {
 
 .status-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
 }
 
 .status-card {
-  background-color: var(--panel-bg);
+  background-color: var(--surface-color);
   border: 1px solid var(--panel-border);
-  border-radius: 16px;
-  padding: 16px;
-  min-height: 220px;
+  border-radius: 10px;
+  padding: 18px;
+  min-height: 240px;
   color: var(--text-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .status-card h2 {
   margin: 0 0 12px;
+  font-size: 1.1rem;
 }
 
 .card-title {
@@ -995,9 +1063,9 @@ onBeforeUnmount(() => {
 }
 
 .status-chip {
-  padding: 4px 10px;
+  padding: 3px 9px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
   background-color: rgba(255, 255, 255, 0.12);
 }
 
@@ -1010,7 +1078,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 12px;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid var(--panel-border);
   background-color: var(--panel-bg);
 }
@@ -1031,11 +1099,12 @@ onBeforeUnmount(() => {
 
 .cache-actions button {
   border: 1px solid var(--control-border);
-  border-radius: 8px;
-  padding: 6px 12px;
+  border-radius: 6px;
+  padding: 5px 10px;
   cursor: pointer;
   background-color: var(--control-bg);
   color: var(--text-color);
+  font-size: 11px;
 }
 
 .cache-actions .danger {
@@ -1050,13 +1119,13 @@ onBeforeUnmount(() => {
   margin: 12px 0 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .cache-entry-list li,
 .recent-item {
-  padding: 12px;
-  border-radius: 12px;
+  padding: 11px;
+  border-radius: 10px;
   border: 1px solid var(--panel-border);
   background-color: var(--panel-bg);
   display: flex;
@@ -1070,18 +1139,19 @@ onBeforeUnmount(() => {
   color: var(--muted-text);
   margin-top: 4px;
   word-break: break-all;
+  font-size: 11px;
 }
 
 .cache-entry-stats span {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted-text);
 }
 
 .progress-box,
 .stats-box {
-  margin-top: 16px;
-  padding: 12px;
-  border-radius: 12px;
+  margin-top: 14px;
+  padding: 11px;
+  border-radius: 10px;
   border: 1px solid var(--panel-border);
   background-color: var(--panel-bg);
 }
@@ -1095,28 +1165,30 @@ onBeforeUnmount(() => {
 
 .progress-header button {
   border: none;
-  border-radius: 6px;
-  padding: 6px 12px;
+  border-radius: 5px;
+  padding: 5px 11px;
   background-color: #ef5350;
   color: #fff;
   cursor: pointer;
+  font-size: 11px;
 }
 
 progress {
   width: 100%;
-  height: 12px;
+  height: 10px;
 }
 
 .unmatched-box ul,
 .error-board ul {
   margin: 8px 0 0;
   padding-left: 20px;
+  font-size: 12px;
 }
 
 .error-board {
   margin-top: 12px;
-  padding: 12px;
-  border-radius: 12px;
+  padding: 11px;
+  border-radius: 10px;
   background-color: rgba(255, 82, 82, 0.12);
   border: 1px solid rgba(255, 82, 82, 0.35);
 }
@@ -1125,6 +1197,7 @@ progress {
 .empty-text {
   color: var(--muted-text);
   margin-top: 12px;
+  font-size: 12px;
 }
 
 .recent-meta {
@@ -1139,24 +1212,25 @@ progress {
 
 .recent-time {
   display: block;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted-text);
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 .recent-actions button {
   border: none;
-  border-radius: 8px;
-  padding: 6px 12px;
+  border-radius: 6px;
+  padding: 5px 11px;
   background-color: var(--accent-color);
   color: var(--accent-contrast);
   cursor: pointer;
+  font-size: 11px;
 }
 
 .badge {
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 10px;
   background-color: rgba(255, 193, 7, 0.2);
   color: #ffc107;
 }
@@ -1175,6 +1249,17 @@ progress {
 }
 
 @media (max-width: 1100px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+
   .panel-header {
     flex-direction: column;
     align-items: flex-start;
@@ -1186,7 +1271,12 @@ progress {
   }
 
   .main-nav {
-    flex-direction: column;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .nav-item {
+    flex-shrink: 0;
   }
 }
 </style>
