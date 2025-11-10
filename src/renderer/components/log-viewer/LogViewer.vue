@@ -145,8 +145,18 @@ const formatCellValue = (value: unknown): string => {
   return String(value);
 };
 
+const escapeHtml = (text: string): string => {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 const highlightText = (text: string, keyword: string): string => {
-  if (!keyword || !text) return text;
+  if (!keyword || !text) return escapeHtml(text);
+  const escaped = escapeHtml(text);
   const keywords: string[] = [];
   const quoted = keyword.match(/"([^"]+)"/g);
   let remaining = keyword;
@@ -158,10 +168,10 @@ const highlightText = (text: string, keyword: string): string => {
   }
   const unquoted = remaining.trim().split(/\s+/).filter(k => k);
   keywords.push(...unquoted);
-  if (keywords.length === 0) return text;
-  const pattern = keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  if (keywords.length === 0) return escaped;
+  const pattern = keywords.map(k => escapeHtml(k).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
   const regex = new RegExp(`(${pattern})`, 'gi');
-  return text.replace(regex, '<mark>$1</mark>');
+  return escaped.replace(regex, '<mark>$1</mark>');
 };
 
 const toJsonPretty = (value: unknown): { isJson: boolean; pretty: string } => {
