@@ -145,6 +145,25 @@ const formatCellValue = (value: unknown): string => {
   return String(value);
 };
 
+const highlightText = (text: string, keyword: string): string => {
+  if (!keyword || !text) return text;
+  const keywords: string[] = [];
+  const quoted = keyword.match(/"([^"]+)"/g);
+  let remaining = keyword;
+  if (quoted) {
+    quoted.forEach(q => {
+      keywords.push(q.slice(1, -1));
+      remaining = remaining.replace(q, '');
+    });
+  }
+  const unquoted = remaining.trim().split(/\s+/).filter(k => k);
+  keywords.push(...unquoted);
+  if (keywords.length === 0) return text;
+  const pattern = keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const regex = new RegExp(`(${pattern})`, 'gi');
+  return text.replace(regex, '<mark>$1</mark>');
+};
+
 const toJsonPretty = (value: unknown): { isJson: boolean; pretty: string } => {
   if (typeof value !== 'string') {
     return { isJson: false, pretty: '' };
@@ -226,7 +245,7 @@ const toJsonPretty = (value: unknown): { isJson: boolean; pretty: string } => {
                 >
                   {{ normalizeLevel(item[column.name]) || 'N/A' }}
                 </span>
-                <span v-else>{{ formatCellValue(item[column.name]) }}</span>
+                <span v-else v-html="highlightText(formatCellValue(item[column.name]), query.search)"></span>
               </div>
             </div>
           </RecycleScroller>
@@ -257,8 +276,8 @@ const toJsonPretty = (value: unknown): { isJson: boolean; pretty: string } => {
               <span>{{ entry.name }}</span>
               <button type="button" @click="copyField(entry.raw)">{{ t('logViewer.copy') }}</button>
             </header>
-            <pre v-if="entry.isJson">{{ entry.pretty }}</pre>
-            <p v-else>{{ entry.value }}</p>
+            <pre v-if="entry.isJson" v-html="highlightText(entry.pretty, query.search)"></pre>
+            <p v-else v-html="highlightText(entry.value, query.search)"></p>
           </article>
         </div>
       </section>
@@ -470,6 +489,13 @@ button:not(:disabled):hover {
   max-height: 60px;
 }
 
+.log-row .cell :deep(mark) {
+  background-color: #ffeb3b;
+  color: #000;
+  padding: 2px 0;
+  border-radius: 2px;
+}
+
 .log-row .cell:last-child {
   border-right: none;
 }
@@ -580,6 +606,13 @@ button:not(:disabled):hover {
   border: 1px solid var(--control-border);
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+.detail-entry :deep(mark) {
+  background-color: #ffeb3b;
+  color: #000;
+  padding: 2px 0;
+  border-radius: 2px;
 }
 
 .error {
