@@ -212,7 +212,7 @@ const toJsonPretty = (value: unknown): { isJson: boolean; pretty: string } => {
             v-slot="{ item, index }"
             class="log-scroller"
             :items="rows"
-            :item-size="50"
+            :item-size="82"
             :key-field="primaryKey"
             @update="handleRangeUpdate"
             @scroll-end="() => hasMore && !loading && logsStore.loadMore()"
@@ -456,17 +456,18 @@ button:not(:disabled):hover {
 
 .log-row .cell {
   font-size: 13px;
-  line-height: 1.4;
+  line-height: 1.5;
   word-break: break-all;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
-  padding: 8px 10px;
+  padding: 10px;
   flex: 0 0 150px;
   text-align: left;
   border-right: 1px solid var(--panel-border);
+  max-height: 60px;
 }
 
 .log-row .cell:last-child {
