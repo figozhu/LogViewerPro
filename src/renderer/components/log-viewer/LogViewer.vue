@@ -212,7 +212,7 @@ const toJsonPretty = (value: unknown): { isJson: boolean; pretty: string } => {
             v-slot="{ item, index }"
             class="log-scroller"
             :items="rows"
-            :item-size="72"
+            :item-size="50"
             :key-field="primaryKey"
             @update="handleRangeUpdate"
             @scroll-end="() => hasMore && !loading && logsStore.loadMore()"
@@ -418,12 +418,17 @@ button:not(:disabled):hover {
   font-weight: 600;
   padding: 8px 10px;
   text-transform: uppercase;
-  flex-shrink: 0;
-  min-width: 100px;
+  flex: 0 0 150px;
+  text-align: left;
+  border-right: 1px solid var(--panel-border);
 }
 
 .table-header .cell:last-child {
-  flex: 1;
+  border-right: none;
+}
+
+.table-header .cell:last-child {
+  flex: 1 1 auto;
   min-width: 200px;
 }
 
@@ -434,7 +439,7 @@ button:not(:disabled):hover {
 
 .log-row {
   display: flex;
-  padding: 8px 10px;
+  padding: 0;
   border-bottom: 1px solid var(--panel-border);
   transition: background 0.2s ease;
   cursor: pointer;
@@ -458,24 +463,29 @@ button:not(:disabled):hover {
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
-  padding-right: 12px;
-  flex-shrink: 0;
-  min-width: 100px;
+  padding: 8px 10px;
+  flex: 0 0 150px;
+  text-align: left;
+  border-right: 1px solid var(--panel-border);
 }
 
 .log-row .cell:last-child {
-  flex: 1;
+  border-right: none;
+}
+
+.log-row .cell:last-child {
+  flex: 1 1 auto;
   min-width: 200px;
-  padding-right: 0;
 }
 
 .level-pill {
-  display: inline-flex;
+  display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
   background-color: color-mix(in srgb, var(--text-color) 15%, transparent);
+  text-align: center;
 }
 
 .log-row.level-error .cell:first-child,
