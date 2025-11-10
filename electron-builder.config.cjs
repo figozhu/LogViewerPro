@@ -31,6 +31,16 @@ module.exports = {
       from: 'node_modules/better-sqlite3',
       to: 'worker/node_modules/better-sqlite3',
       filter: ['**/*']
+    },
+    {
+      from: 'node_modules/bindings',
+      to: 'worker/node_modules/bindings',
+      filter: ['**/*']
+    },
+    {
+      from: 'node_modules/file-uri-to-path',
+      to: 'worker/node_modules/file-uri-to-path',
+      filter: ['**/*']
     }
   ],
   extraMetadata: {
